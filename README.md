@@ -1,20 +1,31 @@
 
-DIY CNC Fusion 360 CAM posts processor
+Fusion 360 CAM posts processor for MPCNC 
 ====
 
-This is modified fork of https://github.com/martindb/mpcnc_posts_processor
+This is modified fork of https://github.com/guffy1234/mpcnc_posts_processor that was originally forked https://github.com/martindb/mpcnc_posts_processor.
 
-CAM posts processor for use with Fusion 360 and [MPCNC](https://www.v1engineering.com/assembly/) with RAMPS or any 3-axis DIY CNC.
+CAM posts processor for use with Fusion 360 and [MPCNC](https://www.v1engineering.com).
+
 Supported firmwares:
 - Marlin 2.0
 - Repetier firmware 1.0.3 (not tested. gcode is same as for Marlin)
 - GRBL 1.1
 - RepRap firmware (Duet3d) 
 
+Installation:
+- The post processor has three .cps files.
+- Each .csp file is considered by F360 to be a seperate Post Processor.
+- Currently each .cps file depends on DIYCNC_common.js.
+- Can not use F360 Manage->Post Library menu to install the post processor
+as the DIYCNC_common.js will not be installed.
+- Instead copy the .cps file and DIYCNC_common.js
+to the F360 install director or use the ... to select to the post processor's directory when
+running the post processor.
+
 Some design points:
 - Setup operation types: Milling, Water/Laser/Plasma
 - Support mm and Inches units (**but all properties MUST be set in MM**)
-- Rapids movements use seperate G0 moves, first to move in Z and then to move inXY. Moves use independent travel speeds for XY and Z.
+- Rapids movements use seperate G0 moves, first to move in Z and then to move in XY. Moves use independent travel speeds for XY and Z.
 - Arcs support on XY plane (Marlin/Repetier/RepRap) or all panes (Grbl)
 - Tested with LCD display and SD card (built in tool change require printing from SD and LCD to restart)
 - Support for 3 different laser power using "cutting modes" (through, etch, vaporize)
