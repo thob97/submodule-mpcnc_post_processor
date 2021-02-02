@@ -67,7 +67,7 @@ function CoolantB(on) {
 
   // Default
   else {
-    writeBlock(on ? properties.coolantBMarlinOn : roperties.coolantBMarlinOff);
+    writeBlock(on ? properties.coolantBMarlinOn : properties.coolantBMarlinOff);
   }
 }
 
