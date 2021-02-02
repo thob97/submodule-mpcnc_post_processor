@@ -414,7 +414,13 @@ propertyDefinitions = {
   },
   coolantAMarlinOn: {
       title: "Coolant: A On command", description: "GCode command to turn on Coolant channel A", group: 8,
-      type: "string", default_mm: "M42 P11 S255"
+      type: "enum", default_mm: "M42 P11 S255", 
+      values: [
+        { title: "Marlin: M42 P11 S255", id: "M42 P11 S255" },
+        { title: "Marlin: M42 P6 S255", id: "M42 P6 S255" },
+        { title: "Grbl: M7 (mist)", id: "M7" },
+        { title: "Grbl: M8 (flood)", id: "M8" }
+      ]
   },
   coolantAMarlinOff: {
     title: "Coolant: A Off command", description: "Gcode command to turn off Coolant A", group: 8,
@@ -422,8 +428,8 @@ propertyDefinitions = {
   },
 
   coolantB_Mode: {
-    title: "Coolant: B Mode", description: "Enable issuing g-codes for control Coolant channel B", group: 8, type: "integer",
-    default_mm: 0, default_in: 0,
+    title: "Coolant: B Mode", description: "Enable issuing g-codes for control Coolant channel B", group: 8,
+    type: "integer", default_mm: 0, default_in: 0,
     values: [
       { title: "off", id: 0 },
       { title: "flood", id: 1 },
@@ -1228,44 +1234,55 @@ function loadFile(_file) {
   }
 }
 
-// Manage coolant state 
+// Manage two channels of coolant by tracking which coolant is being using for
+// a channel (0 = disabled). SetCoolant called with desired coolant to use or 0 to disable
 
-var currentCoolantMode = 0;
+var coolantChannelA = 0;
+var coolantChannelB = 0;
 
 function setCoolant(coolant) {
   let fw = properties.jobSelectedFirmware;
 
-  if (currentCoolantMode == coolant) {
+  // As long as we are not disabling coolant, then if either of the coolant
+  // channels are already operating in the mode requested then there is
+  // nothing to do
+  if ((coolant != 0) &&
+      ((coolantChannelA == coolant) || (coolantChannelB == coolant))) {
     return;
   }
 
-  if (properties.coolantA_Mode != 0) {
-    if (currentCoolantMode == properties.coolantA_Mode) {
-      writeActivityComment(" >>> Coolant A OFF");
-
-      CoolantA(true);  
-
-    } else if (coolant == properties.coolantA_Mode) {
-      writeActivityComment(" >>> Coolant A ON");
-
-      CoolantA(false);
-    }
+  // F360 allows only 1 coolant to be defined on an operation. If a coolant channel
+  // is active then disable it before we switch to the other
+  if (coolantChannelA != 0) {
+    writeActivityComment(" >>> Coolant A OFF");
+    coolantChannelA = 0;
+    CoolantA(false);
   }
 
-  if (properties.coolantB_Mode != 0) {
-    if (currentCoolantMode == properties.coolantB_Mode) {
-      writeActivityComment(" >>> Coolant B OFF");
+  if (coolantChannelB != 0) {
+    writeActivityComment(" >>> Coolant B OFF");
+    coolantChannelB = 0;
+    CoolantB(false);
+  }
 
+  // As long as we are not disabling coolant (coolant = 0), then check the coolant channels
+  // and enable the one that provides the coolant requested. If neither do then
+  // issue an warning
+  if (coolant != 0) {
+    if (properties.coolantA_Mode == coolant) {
+      writeActivityComment(" >>> Coolant A ON: " + propertyDefinitions.coolantA_Mode.values[coolant].title);
+      coolantChannelA =  coolant;
+      CoolantA(true);
+    }
+    else if (properties.coolantB_Mode == coolant) {
+      writeActivityComment(" >>> Coolant B ON: " + propertyDefinitions.coolantB_Mode.values[coolant].title);
+      coolantChannelB =  coolant;
       CoolantB(true);
-      
-    } else if (coolant == properties.coolantB_Mode) {
-      writeActivityComment(" >>> Coolant B ON");
-
-      CoolantB(false);  
+    }
+    else {
+      writeActivityComment(" >>> Coolant Channel not Configured" + coolant);
     }
   }
-
-  currentCoolantMode = coolant;
 }
 
 function propertyMmToUnit(_v) {
