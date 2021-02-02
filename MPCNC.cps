@@ -33,7 +33,11 @@ mergeProperties(propertyDefinitions, propertyDefinitions3dPrinter);
 function flushMotions() {
   let fw = properties.jobSelectedFirmware;
 
-  if (fw != eFirmware.GRBL) {
+  if (fw == eFirmware.GRBL) {
+  }
+
+  // Default
+  else {
     writeBlock(mFormat.format(400));
   }
 }
@@ -91,7 +95,9 @@ vendorUrl = "https://github.com/flyfisher604/mpcnc_post_processor";
 
 // user-defined properties
 properties = {
-  jobSelectedFirmware : firmware,         // Firmware to use in special cases
+  jobSelectedFirmware : firmware,      // Firmware to use in special cases
+
+  jobMarlinEnforceFeedrate: false,     // Add feedrate to each movement line
 
   jobManualSpindlePowerControl: true,  // Spindle motor is controlled by manual switch 
 
@@ -138,9 +144,15 @@ properties = {
   cutterOnVaporize: 100,            // Persent of power to turn on the laser/plasma cutter in vaporize mode
   cutterOnThrough: 80,              // Persent of power to turn on the laser/plasma cutter in through mode
   cutterOnEtch: 40,                 // Persent of power to turn on the laser/plasma cutter in etch mode
+  cutterMarlinMode: 106,            // Marlin mode laser/plasma cutter
+  cutterMarlinPin: 4,               // Marlin laser/plasma cutter pin for M42
 
   coolantA_Mode: 0,                 // Enable issuing g-codes for control Coolant channel A 
-  coolantB_Mode: 0,                 // Use issuing g-codes for control Coolant channel B  
+  coolantAMarlinOn: "M42 P11 S255", // GCode command to turn on Coolant channel A
+  coolantAMarlinOff: "M42 P11 S0",  // Gcode command to turn off Coolant channel A
+  coolantB_Mode: 0,                 // Use issuing g-codes for control Coolant channel B 
+  coolantBMarlinOn: "M42 P6 S255",  // GCode command to turn on Coolant channel B
+  coolantBMarlinOff: "M42 P6 S0",   // Gcode command to turn off Coolant channel B 
 
   commentWriteTools: true,
   commentActivities: true,
@@ -553,7 +565,7 @@ function onOpen() {
 // Called at end of gcode file
 function onClose() {
   let fw = properties.jobSelectedFirmware;
-  
+
   writeActivityComment(" *** STOP begin ***");
 
   flushMotions();
@@ -1517,7 +1529,7 @@ function askUser(text, title, allowJog) {
   let fw = properties.jobSelectedFirmware;
 
   // Firmware is RepRap?
-  if (fw != eFirmware.REPRAP) {
+  if (fw == eFirmware.REPRAP) {
     var v1 = " P\"" + text + "\" R\"" + title + "\" S3";
     var v2 = allowJog ? " X1 Y1 Z1" : "";
     writeBlock(mFormat.format(291), (properties.jobSeparateWordsWithSpace ? "" : " ") + v1 + v2);
@@ -1533,7 +1545,7 @@ function toolChange() {
   let fw = properties.jobSelectedFirmware;
 
   // Grbl tool change?
-  if (fw != eFirmware.GRBL) {
+  if (fw == eFirmware.GRBL) {
     
     writeBlock(mFormat.format(6), tFormat.format(tool.number));
     writeBlock(gFormat.format(54));
@@ -1576,7 +1588,7 @@ function probeTool() {
   let fw = properties.jobSelectedFirmware;
 
   // Is Grbl?
-  if (fw != eFirmware.GRBL) {
+  if (fw == eFirmware.GRBL) {
   }
 
   // Default
@@ -1611,6 +1623,7 @@ function probeTool() {
   }
 }
 
+/*
 properties3dPrinter = {
   jobMarlinEnforceFeedrate: false,     // Add feedrate to each movement line
 
@@ -1657,3 +1670,4 @@ propertyDefinitions3dPrinter = {
     default_mm: "M42 P6 S0", default_in: "M42 P6 S0"
   },
 };
+*/
