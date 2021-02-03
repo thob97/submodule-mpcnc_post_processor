@@ -15,7 +15,7 @@ var eFirmware = {
     GRBL: 1,
     REPRAP: 2,
     prop: {
-      0: {name: "Marlin 2.0", value: 0, code: "S"},
+      0: {name: "Marlin 2.x", value: 0, code: "S"},
       1: {name: "Grbl 1.1", value: 1, code: "M"},
       2: {name: "RepRap", value: 2, code: "L"}
     }
@@ -44,31 +44,11 @@ function flushMotions() {
 
 // Coolant
 function CoolantA(on) {
-  let fw = properties.jobSelectedFirmware;
-
-  // Firmware is Grbl?
-  if (fw == eFirmware.GRBL) {
-    writeBlock(mFormat.format(on ? properties.GrblCoolantA : 9));
-  }
-
-  // Default
-  else {
-    writeBlock(on ? properties.coolantAMarlinOn : properties.coolantAMarlinOff);
-  }
+  writeBlock(on ? properties.cl2_coolantAOn : properties.cl3_coolantAOff);
 }
 
 function CoolantB(on) {
-  let fw = properties.jobSelectedFirmware;
-
-  // Firmware is Grbl?
-  if (fw == eFirmware.GRBL) {
-    writeBlock(mFormat.format(on ? properties.GrblCoolantB : 9));
-  }
-
-  // Default
-  else {
-    writeBlock(on ? properties.coolantBMarlinOn : properties.coolantBMarlinOff);
-  }
+  writeBlock(on ? properties.cl4_coolantBOn : properties.cl5_coolantBOff);
 }
 
 
@@ -97,8 +77,6 @@ vendorUrl = "https://github.com/flyfisher604/mpcnc_post_processor";
 properties = {
   jobSelectedFirmware : firmware,      // Firmware to use in special cases
 
-  jobMarlinEnforceFeedrate: false,     // Add feedrate to each movement line
-
   jobManualSpindlePowerControl: true,  // Spindle motor is controlled by manual switch 
 
   jobUseArcs: true,                    // Produce G2/G3 for arcs
@@ -113,6 +91,7 @@ properties = {
 
   fr0_TravelSpeedXY: 2500,             // High speed for travel movements X & Y (mm/min)
   fr1_TravelSpeedZ: 300,               // High speed for travel movements Z (mm/min)
+  fr2_EnforceFeedrate: false,          // Add feedrate to each movement line
   frA_ScaleFeedrate: false,            // Will feedrated be scaled
   frB_MaxCutSpeedXY: 900,              // Max speed for cut movements X & Y (mm/min)
   frC_MaxCutSpeedZ: 180,               // Max speed for cut movements Z (mm/min)
@@ -147,12 +126,12 @@ properties = {
   cutterMarlinMode: 106,            // Marlin mode laser/plasma cutter
   cutterMarlinPin: 4,               // Marlin laser/plasma cutter pin for M42
 
-  coolantA_Mode: 0,                 // Enable issuing g-codes for control Coolant channel A 
-  coolantAMarlinOn: "M42 P11 S255", // GCode command to turn on Coolant channel A
-  coolantAMarlinOff: "M42 P11 S0",  // Gcode command to turn off Coolant channel A
-  coolantB_Mode: 0,                 // Use issuing g-codes for control Coolant channel B 
-  coolantBMarlinOn: "M42 P6 S255",  // GCode command to turn on Coolant channel B
-  coolantBMarlinOff: "M42 P6 S0",   // Gcode command to turn off Coolant channel B 
+  cl0_coolantA_Mode: 0,             // Enable issuing g-codes for control Coolant channel A 
+  cl1_coolantB_Mode: 0,             // Use issuing g-codes for control Coolant channel B 
+  cl2_coolantAOn: "M42 P6 S255",    // GCode command to turn on Coolant channel A
+  cl3_coolantAOff: "M42 P6 S0",     // Gcode command to turn off Coolant channel A
+  cl4_coolantBOn: "M42 P11 S255",   // GCode command to turn on Coolant channel B
+  cl5_coolantBOff: "M42 P11 S0",    // Gcode command to turn off Coolant channel B 
 
   commentWriteTools: true,
   commentActivities: true,
@@ -164,8 +143,6 @@ properties = {
   DuetLaserMode: "M452 P2 I0 R255 F200",     // GCode command to setup Duet3d laser mode
   
   GrblCutterMode: 4,                // GRBL mode laser/plasma cutter
-  GrblCoolantA: 7,                  // GCode command to turn on Coolant channel A
-  GrblCoolantB: 8,                  // GCode command to turn on Coolant channel A
 };
 
 propertyDefinitions = {
@@ -228,6 +205,10 @@ propertyDefinitions = {
   fr1_TravelSpeedZ: {
     title: "Feed: Travel Speed Z", description: "High speed for Rapid movements z (mm/min; in/min)", group: 2,
     type: "spatial", default_mm: 300, default_in: 12
+  },
+  fr2_EnforceFeedrate: {
+    title: "Feed: Enforce Feedrate", description: "Add feedrate to each movement g-code", group: 2,
+    type: "boolean", default_mm: false, default_in: false
   },
   frA_ScaleFeedrate: {
     title: "Feed: Scale feedrate", description: "Scale feedrate based on X, Y, Z axis maximums", group: 2,
@@ -397,8 +378,8 @@ propertyDefinitions = {
 
   // Coolant
 
-  coolantA_Mode: {
-    title: "Coolant: A Mode", description: "Enable issuing g-codes for control Coolant channel A", group: 8,
+  cl0_coolantA_Mode: {
+    title: "Coolant: A Mode", description: "Enable channel A when tool is set this coolant", group: 8,
     type: "integer", default_mm: 0, default_in: 0,
     values: [
       { title: "off", id: 0 },
@@ -412,18 +393,9 @@ propertyDefinitions = {
       { title: "floodThroughTool", id: 8 }
     ]
   },
-  coolantAMarlinOn: {
-      title: "Coolant: A On command", description: "GCode command to turn on Coolant channel A", group: 8,
-      type: "string", default_mm: "M42 P11 S255"
-  },
-  coolantAMarlinOff: {
-    title: "Coolant: A Off command", description: "Gcode command to turn off Coolant A", group: 8,
-    type: "string", default_mm: "M42 P11 S0", default_in: "M42 P11 S0"
-  },
-
-  coolantB_Mode: {
-    title: "Coolant: B Mode", description: "Enable issuing g-codes for control Coolant channel B", group: 8, type: "integer",
-    default_mm: 0, default_in: 0,
+  cl1_coolantB_Mode: {
+    title: "Coolant: B Mode", description: "Enable channel B when tool is set this coolant", group: 8,
+    type: "integer", default_mm: 0, default_in: 0,
     values: [
       { title: "off", id: 0 },
       { title: "flood", id: 1 },
@@ -436,29 +408,42 @@ propertyDefinitions = {
       { title: "floodThroughTool", id: 8 }
     ]
   },
-  coolantBMarlinOn: {
-    title: "Coolant: B On command", description: "GCode command to turn on Coolant channel B", group: 8,
-    type: "string", default_mm: "M42 P6 S255", default_in: "M42 P6 S255"
+  cl2_coolantAOn: {
+      title: "Coolant: A Enable", description: "GCode to turn On coolant channel A", group: 8,
+      type: "enum", default_mm: "M42 P6 S255", default_in: "M42 P6 S255",
+      values: [
+        { title: "Mrln: M42 P6 S255", id: "M42 P6 S255" },
+        { title: "Mrln: M42 P11 S255", id: "M42 P11 S255" },
+        { title: "Grbl: M7 (mist)", id: "M7" },
+        { title: "Grbl: M8 (flood)", id: "M8" }
+      ]
   },
-  coolantBMarlinOff: {
-    title: "Coolant: B Off command", description: "Gcode command to turn off Coolant channel B", group: 8,
-    type: "string", default_mm: "M42 P6 S0", default_in: "M42 P6 S0"
-  },
-
-  GrblCoolantA: {
-    title: "Grbl: Coolant A code", description: "GRBL g-codes for control Coolant channel A", group: 11,
-    type: "integer", default_mm: 7, default_in: 7,
+  cl3_coolantAOff: {
+    title: "Coolant: A Disable", description: "Gcode to turn Off coolant A", group: 8,
+    type: "enum", default_mm: "M42 P6 S0", default_in: "M42 P6 S0",
     values: [
-        { title: "M7 flood", id: 7 },
-        { title: "M8 mist", id: 8 },
+      { title: "Mrln: M42 P6 S0", id: "M42 P6 S0" },
+      { title: "Mrln: M42 P11 S0", id: "M42 P11 S0" },
+      { title: "Grbl: M9 (off)", id: "M9" }
     ]
   },
-  GrblCoolantB: {
-    title: "Grbl: Coolant B code", description: "GRBL g-codes for control Coolant channel B", group: 11,
-    type: "integer", default_mm: 8, default_in: 8,
+  cl4_coolantBOn: {
+    title: "Coolant: B Enable", description: "GCode to turn On coolant channel B", group: 8,
+    type: "enum", default_mm: "M42 P11 S255", default_in: "M42 P11 S255",
     values: [
-        { title: "M7 flood", id: 7 },
-        { title: "M8 mist", id: 8 },
+      { title: "Mrln: M42 P11 S255", id: "M42 P11 S255" },
+      { title: "Mrln: M42 P6 S255", id: "M42 P6 S255" },
+      { title: "Grbl: M7 (mist)", id: "M7" },
+      { title: "Grbl: M8 (flood)", id: "M8" }
+    ]
+  },
+  cl5_coolantBOff: {
+    title: "Coolant: B Disable", description: "Gcode to turn Off coolant B", group: 8,
+    type: "enum", default_mm: "M42 P11 S0", default_in: "M42 P11 S0",
+    values: [
+      { title: "Mrln: M42 P11 S0", id: "M42 P11 S0" },
+      { title: "Mrln: M42 P6 S0", id: "M42 P6 S0" },
+      { title: "Grbl: M9 (off)", id: "M9" }
     ]
   },
 };
@@ -550,10 +535,10 @@ function onOpen() {
   }
   else {
     gMotionModal = createModal({ force: true }, gFormat); // modal group 1 // G0-G3, ...
+  }
 
-    if (properties.jobMarlinEnforceFeedrate) {
-      fOutput = createVariable({ force: true }, fFormat);
-    }
+  if (properties.fr2_EnforceFeedrate) {
+    fOutput = createVariable({ force: true }, fFormat);
   }
 
   sequenceNumber = properties.jobSequenceNumberStart;
@@ -1228,44 +1213,55 @@ function loadFile(_file) {
   }
 }
 
-// Manage coolant state 
+// Manage two channels of coolant by tracking which coolant is being using for
+// a channel (0 = disabled). SetCoolant called with desired coolant to use or 0 to disable
 
-var currentCoolantMode = 0;
+var coolantChannelA = 0;
+var coolantChannelB = 0;
 
 function setCoolant(coolant) {
   let fw = properties.jobSelectedFirmware;
 
-  if (currentCoolantMode == coolant) {
+  // As long as we are not disabling coolant (= 0), then if either of the coolant
+  // channels are already operating in the mode requested then there is
+  // nothing to do
+  if ((coolant != 0) &&
+      ((coolantChannelA == coolant) || (coolantChannelB == coolant))) {
     return;
   }
 
-  if (properties.coolantA_Mode != 0) {
-    if (currentCoolantMode == properties.coolantA_Mode) {
-      writeActivityComment(" >>> Coolant A OFF");
-
-      CoolantA(true);  
-
-    } else if (coolant == properties.coolantA_Mode) {
-      writeActivityComment(" >>> Coolant A ON");
-
-      CoolantA(false);
-    }
+  // F360 allows only 1 coolant to be defined on an operation. If a coolant channel
+  // is active then disable it before we switch to the other
+  if (coolantChannelA != 0) {
+    writeActivityComment(" >>> Coolant Channel A: off");
+    coolantChannelA = 0;
+    CoolantA(false);
   }
 
-  if (properties.coolantB_Mode != 0) {
-    if (currentCoolantMode == properties.coolantB_Mode) {
-      writeActivityComment(" >>> Coolant B OFF");
+  if (coolantChannelB != 0) {
+    writeActivityComment(" >>> Coolant Channel B: off");
+    coolantChannelB = 0;
+    CoolantB(false);
+  }
 
+  // As long as we are not disabling coolant (coolant = 0), then check the coolant channels
+  // and enable the one that provides the coolant requested. If neither do then
+  // issue an warning
+  if (coolant != 0) {
+    if (properties.cl0_coolantA_Mode == coolant) {
+      writeActivityComment(" >>> Coolant Channel A: " + propertyDefinitions.cl0_coolantA_Mode.values[coolant].title);
+      coolantChannelA =  coolant;
+      CoolantA(true);
+    }
+    else if (properties.cl1_coolantB_Mode == coolant) {
+      writeActivityComment(" >>> Coolant Channel B: " + propertyDefinitions.cl1_coolantB_Mode.values[coolant].title);
+      coolantChannelB =  coolant;
       CoolantB(true);
-      
-    } else if (coolant == properties.coolantB_Mode) {
-      writeActivityComment(" >>> Coolant B ON");
-
-      CoolantB(false);  
+    }
+    else {
+      writeActivityComment(" >>> Coolant Channels, none set for: " + coolant);
     }
   }
-
-  currentCoolantMode = coolant;
 }
 
 function propertyMmToUnit(_v) {
@@ -1622,52 +1618,3 @@ function probeTool() {
     askUser("Detach ZProbe", "Probe", false);
   }
 }
-
-/*
-properties3dPrinter = {
-  jobMarlinEnforceFeedrate: false,     // Add feedrate to each movement line
-
-  cutterMarlinMode: 106,              // Marlin mode laser/plasma cutter
-  cutterMarlinPin: 4,               // Marlin laser/plasma cutter pin for M42
-
-  coolantAMarlinOn: "M42 P11 S255",        // GCode command to turn on Coolant channel A
-  coolantAMarlinOff: "M42 P11 S0",         // Gcode command to turn off Coolant channel A
-  coolantBMarlinOn: "M42 P6 S255",         // GCode command to turn on Coolant channel B
-  coolantBMarlinOff: "M42 P6 S0",          // Gcode command to turn off Coolant channel B
-};
-
-propertyDefinitions3dPrinter = {
-  jobMarlinEnforceFeedrate: {
-    title: "Job: Enforce Feedrate", description: "Add feedrate to each movement g-code", group: 1,
-    type: "boolean", default_mm: false, default_in: false
-  },
-  cutterMarlinMode: {
-    title: "Laser: Marlin/Reprap mode", description: "Marlin/Reprar mode of the laser/plasma cutter", group: 5,
-    type: "integer", default_mm: 106, default_in: 106,
-    values: [
-      { title: "M106 S{PWM}/M107", id: 106 },
-      { title: "M3 O{PWM}/M5", id: 3 },
-      { title: "M42 P{pin} S{PWM}", id: 42 },
-    ]
-  },
-  cutterMarlinPin: {
-    title: "Laser: Marlin M42 pin", description: "Marlin custom pin number for the laser/plasma cutter", group: 5,
-    type: "integer", default_mm: 4, default_in: 4
-  },
-
-  coolantAMarlinOn: { title: "Coolant: A On command", description: "GCode command to turn on Coolant channel A", group: 7, type: "string", default_mm: "M42 P11 S255" },
-  coolantAMarlinOff: {
-    title: "Coolant: A Off command", description: "Gcode command to turn off Coolant A", group: 7, type: "string",
-    default_mm: "M42 P11 S0", default_in: "M42 P11 S0"
-  },
-
-  coolantBMarlinOn: {
-    title: "Coolant: B On command", description: "GCode command to turn on Coolant channel B", group: 7, type: "string",
-    default_mm: "M42 P6 S255", default_in: "M42 P6 S255"
-  },
-  coolantBMarlinOff: {
-    title: "Coolant: B Off command", description: "Gcode command to turn off Coolant channel B", group: 7, type: "string",
-    default_mm: "M42 P6 S0", default_in: "M42 P6 S0"
-  },
-};
-*/
