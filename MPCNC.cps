@@ -15,13 +15,26 @@ var eFirmware = {
     GRBL: 1,
     REPRAP: 2,
     prop: {
-      0: {name: "Marlin 2.x", value: 0, code: "S"},
-      1: {name: "Grbl 1.1", value: 1, code: "M"},
-      2: {name: "RepRap", value: 2, code: "L"}
+      0: {name: "Marlin 2.x", value: 0},
+      1: {name: "Grbl 1.1", value: 1},
+      2: {name: "RepRap", value: 2}
     }
   };
 
 var firmware =  eFirmware.MARLIN; 
+
+var eComment = {
+    Off: 0,
+    Important: 1,
+    Info: 2,
+    Debug: 3,
+    prop: {
+      0: {name: "Off", value: 0},
+      1: {name: "Important", value: 1},
+      2: {name: "Info", value: 2},
+      3: {name: "Debug", value: 3}
+    }
+};
 
 machineMode = undefined; //TYPE_MILLING, TYPE_JET
 
@@ -87,7 +100,8 @@ properties = {
   jobSequenceNumbers: false,           // show sequence numbers
   jobSequenceNumberStart: 10,          // first sequence number
   jobSequenceNumberIncrement: 1,       // increment for sequence numbers
-  jobSeparateWordsWithSpace: true,     // specifies that the words should be separated with a white space  
+  jobSeparateWordsWithSpace: true,     // specifies that the words should be separated with a white space 
+  jobCommentLevel: eComment.Info,      // The level of comments included 
 
   fr0_TravelSpeedXY: 2500,             // High speed for travel movements X & Y (mm/min)
   fr1_TravelSpeedZ: 300,               // High speed for travel movements Z (mm/min)
@@ -132,12 +146,6 @@ properties = {
   cl3_coolantAOff: "M42 P6 S0",     // Gcode command to turn off Coolant channel A
   cl4_coolantBOn: "M42 P11 S255",   // GCode command to turn on Coolant channel B
   cl5_coolantBOff: "M42 P11 S0",    // Gcode command to turn off Coolant channel B 
-
-  commentWriteTools: true,
-  commentActivities: true,
-  commentSections: true,
-  commentCommands: true,
-  commentMovements: true,
 
   DuetMillingMode: "M453 P2 I0 R30000 F200", // GCode command to setup Duet3d milling mode
   DuetLaserMode: "M452 P2 I0 R255 F200",     // GCode command to setup Duet3d laser mode
@@ -196,8 +204,17 @@ propertyDefinitions = {
     title: "Job: Separate words", description: "Specifies that the words should be separated with a white space", group: 1,
     type: "boolean", default_mm: true, default_in: true
   },
-
-
+  jobCommentLevel: {
+    title: "Job: Comment Level", description: "Controls the comments include", group: 1,
+    type: "integer", default_mm: 3, default_in: 3,
+    values: [
+      { title: eComment.prop[eComment.Off].name, id: eComment.Off },
+      { title: eComment.prop[eComment.Important].name, id: eComment.Important },
+      { title: eComment.prop[eComment.Info].name, id: eComment.Info },
+      { title: eComment.prop[eComment.Debug].name, id: eComment.Debug },
+    ]
+  },
+  
   fr0_TravelSpeedXY: {
     title: "Feed: Travel speed X/Y", description: "High speed for Rapid movements X & Y (mm/min; in/min)", group: 2,
     type: "spatial", default_mm: 2500, default_in: 100
@@ -335,27 +352,6 @@ propertyDefinitions = {
     type: "file", default_mm: "", default_in: ""
   },
 
-
-  commentWriteTools: {
-    title: "Comment: Write Tools", description: "Write table of used tools in job header", group: 9,
-    type: "boolean", default_mm: true, default_in: true
-  },
-  commentActivities: {
-    title: "Comment: Activities", description: "Write comments which somehow helps to understand current piece of g-code", group: 9,
-    type: "boolean", default_mm: true, default_in: true
-  },
-  commentSections: {
-    title: "Comment: Sections", description: "Write header of every section", group: 9,
-    type: "boolean", default_mm: true, default_in: true
-  },
-  commentCommands: {
-    title: "Comment: Trace Commands", description: "Write stringified commands called by CAM", group: 9,
-    type: "boolean", default_mm: true, default_in: true
-  },
-  commentMovements: {
-    title: "Comment: Trace Movements", description: "Write stringified movements called by CAM", group: 9,
-    type: "boolean", default_mm: true, default_in: true
-  },
 
   DuetMillingMode: {
     title: "Duet: Milling mode", description: "GCode command to setup Duet3d milling mode", group: 10,
@@ -551,7 +547,7 @@ function onOpen() {
 function onClose() {
   let fw = properties.jobSelectedFirmware;
 
-  writeActivityComment(" *** STOP begin ***");
+  writeComment(eComment.Important, " *** STOP begin ***");
 
   flushMotions();
 
@@ -564,15 +560,13 @@ function onClose() {
 
     end(true);  
     
-    writeActivityComment(" *** STOP end ***");
+    writeComment(eComment.Important, " *** STOP end ***");
   } else {
     loadFile(properties.gcodeStopFile);
   }
 
   if (fw == eFirmware.GRBL) {
     writeln("%");
-  }
-  else  { 
   }
 }
 
@@ -592,60 +586,58 @@ function onSection() {
 
   forceSectionToStartWithRapid = true;
 
-    // Write Start gcode of the documment (after the "onParameters" with the global info)
+  // Write Start gcode of the documment (after the "onParameters" with the global info)
   if (isFirstSection()) {
     writeFirstSection();
   }
 
-  writeActivityComment(" *** SECTION begin ***");
+  writeComment(eComment.Important, " *** SECTION begin ***");
 
-  // Tool change
+  // Do a tool change if tool changes are enabled and its not the first section and this section uses
+  // a different tool then the previous section
   if (properties.toolChangeEnabled && !isFirstSection() && tool.number != getPreviousSection().getTool().number) {
     if (properties.gcodeToolFile == "") {
-      // Builtin tool change gcode
-      writeActivityComment(" --- CHANGE TOOL begin ---");
-      
-      toolChange();
+      // Post Processor does the tool change
 
-      writeActivityComment(" --- CHANGE TOOL end ---");
+      writeComment(eComment.Important, " --- Tool Change Start")
+      toolChange();
+      writeComment(eComment.Important, " --- Tool Change End")
     } else {
-      // Custom tool change gcode
+      // Users custom tool change gcode is used
       loadFile(properties.gcodeToolFile);
     }
   }
 
-  if (properties.commentSections) {
-    // Machining type
-    if (currentSection.type == TYPE_MILLING) {
-      // Specific milling code
-      writeComment(" " + sectionComment + " - Milling - Tool: " + tool.number + " - " + tool.comment + " " + getToolTypeName(tool.type));
-    }
-
-    if (currentSection.type == TYPE_JET) {
-      // Cutter mode used for different cutting power in PWM laser
-      switch (currentSection.jetMode) {
-        case JET_MODE_THROUGH:
-          cutterOnCurrentPower = properties.cutterOnThrough;
-          break;
-        case JET_MODE_ETCHING:
-          cutterOnCurrentPower = properties.cutterOnEtch;
-          break;
-        case JET_MODE_VAPORIZE:
-          cutterOnCurrentPower = properties.cutterOnVaporize;
-          break;
-        default:
-          error("Cutting mode is not supported.");
-      }
-      writeComment(" " + sectionComment + " - Laser/Plasma - Cutting mode: " + getParameter("operation:cuttingMode"));
-    }
-
-    // Print min/max boundaries for each section
-    vectorX = new Vector(1, 0, 0);
-    vectorY = new Vector(0, 1, 0);
-    writeComment("   X Min: " + xyzFormat.format(currentSection.getGlobalRange(vectorX).getMinimum()) + " - X Max: " + xyzFormat.format(currentSection.getGlobalRange(vectorX).getMaximum()));
-    writeComment("   Y Min: " + xyzFormat.format(currentSection.getGlobalRange(vectorY).getMinimum()) + " - Y Max: " + xyzFormat.format(currentSection.getGlobalRange(vectorY).getMaximum()));
-    writeComment("   Z Min: " + xyzFormat.format(currentSection.getGlobalZRange().getMinimum()) + " - Z Max: " + xyzFormat.format(currentSection.getGlobalZRange().getMaximum()));
+  // Machining type
+  if (currentSection.type == TYPE_MILLING) {
+    // Specific milling code
+    writeComment(eComment.Info, " " + sectionComment + " - Milling - Tool: " + tool.number + " - " + tool.comment + " " + getToolTypeName(tool.type));
   }
+
+  if (currentSection.type == TYPE_JET) {
+    // Cutter mode used for different cutting power in PWM laser
+    switch (currentSection.jetMode) {
+      case JET_MODE_THROUGH:
+        cutterOnCurrentPower = properties.cutterOnThrough;
+        break;
+      case JET_MODE_ETCHING:
+        cutterOnCurrentPower = properties.cutterOnEtch;
+        break;
+      case JET_MODE_VAPORIZE:
+        cutterOnCurrentPower = properties.cutterOnVaporize;
+        break;
+      default:
+        error("Cutting mode is not supported.");
+    }
+    writeComment(eComment.Info, " " + sectionComment + " - Laser/Plasma - Cutting mode: " + getParameter("operation:cuttingMode"));
+  }
+
+  // Print min/max boundaries for each section
+  vectorX = new Vector(1, 0, 0);
+  vectorY = new Vector(0, 1, 0);
+  writeComment(eComment.Info, "   X Min: " + xyzFormat.format(currentSection.getGlobalRange(vectorX).getMinimum()) + " - X Max: " + xyzFormat.format(currentSection.getGlobalRange(vectorX).getMaximum()));
+  writeComment(eComment.Info, "   Y Min: " + xyzFormat.format(currentSection.getGlobalRange(vectorY).getMinimum()) + " - Y Max: " + xyzFormat.format(currentSection.getGlobalRange(vectorY).getMaximum()));
+  writeComment(eComment.Info, "   Z Min: " + xyzFormat.format(currentSection.getGlobalZRange().getMinimum()) + " - Z Max: " + xyzFormat.format(currentSection.getGlobalZRange().getMaximum()));
 
   // Adjust the mode
   if (fw == eFirmware.REPRAP) {
@@ -680,12 +672,12 @@ function resetAll() {
 // Called in every section end
 function onSectionEnd() {
   resetAll();
-  writeActivityComment(" *** SECTION end ***");
+  writeComment(eComment.Important, " *** SECTION end ***");
   writeln("");
 }
 
 function onComment(message) {
-  writeComment(message);
+  writeComment(eComment.Important, message);
 }
 
 var pendingRadiusCompensation = RADIUS_COMPENSATION_OFF;
@@ -749,13 +741,13 @@ function onLinear(x, y, z, feed) {
   // slowest cutting feedrate, generally Z's feedrate.
 
   if (properties.mapD_RestoreFirstRapids && (forceSectionToStartWithRapid == true)) {
-    writeComment(" First G1 --> G0");
+    writeComment(eComment.Important, " First G1 --> G0");
 
     forceSectionToStartWithRapid = false;
     onRapid(x, y, z);
   }
   else if (safeToRapid(x, y, z)) {
-    writeComment(" Safe G1 --> G0");
+    writeComment(eComment.Important, " Safe G1 --> G0");
 
     onRapid(x, y, z);
   }
@@ -792,11 +784,11 @@ var powerState = false;
 function onPower(power) {
   if (power != powerState) {
     if (power) {
-      writeActivityComment(" >>> LASER Power ON");
+      writeComment(eComment.Important, " >>> LASER Power ON");
 
       laserOn(cutterOnCurrentPower);
     } else {
-      writeActivityComment(" >>> LASER Power OFF");
+      writeComment(eComment.Important, " >>> LASER Power OFF");
 
       laserOff();
     }
@@ -808,7 +800,7 @@ function onPower(power) {
 function onDwell(seconds) {
   let fw = properties.jobSelectedFirmware;
   
-  writeActivityComment(" >>> Dwell");
+  writeComment(eComment.Important, " >>> Dwell");
   if (seconds > 99999.999) {
     warning(localize("Dwelling time is out of range."));
   }
@@ -832,79 +824,80 @@ function onParameter(name, value) {
   // Write gcode initial info
   // Product version
   if (name == "generated-by") {
-    writeComment(value);
-    writeComment(" Posts processor: " + FileSystem.getFilename(getConfigurationPath()));
+    writeComment(eComment.Important, value);
+    writeComment(eComment.Important, " Posts processor: " + FileSystem.getFilename(getConfigurationPath()));
   }
   // Date
-  if (name == "generated-at") writeComment(" Gcode generated: " + value + " GMT");
+  if (name == "generated-at") writeComment(eComment.Important, " Gcode generated: " + value + " GMT");
   // Document
-  if (name == "document-path") writeComment(" Document: " + value);
+  if (name == "document-path") writeComment(eComment.Important, " Document: " + value);
   // Setup
-  if (name == "job-description") writeComment(" Setup: " + value);
+  if (name == "job-description") writeComment(eComment.Important, " Setup: " + value);
 
   // Get section comment
   if (name == "operation-comment") sectionComment = value;
 }
 
 function onMovement(movement) {
-  if (properties.commentMovements) {
-    var jet = tool.isJetTool && tool.isJetTool();
-    var id;
-    switch (movement) {
-      case MOVEMENT_RAPID:
-        id = "MOVEMENT_RAPID";
-        break;
-      case MOVEMENT_LEAD_IN:
-        id = "MOVEMENT_LEAD_IN";
-        break;
-      case MOVEMENT_CUTTING:
-        id = "MOVEMENT_CUTTING";
-        break;
-      case MOVEMENT_LEAD_OUT:
-        id = "MOVEMENT_LEAD_OUT";
-        break;
-      case MOVEMENT_LINK_TRANSITION:
-        id = jet ? "MOVEMENT_BRIDGING" : "MOVEMENT_LINK_TRANSITION";
-        break;
-      case MOVEMENT_LINK_DIRECT:
-        id = "MOVEMENT_LINK_DIRECT";
-        break;
-      case MOVEMENT_RAMP_HELIX:
-        id = jet ? "MOVEMENT_PIERCE_CIRCULAR" : "MOVEMENT_RAMP_HELIX";
-        break;
-      case MOVEMENT_RAMP_PROFILE:
-        id = jet ? "MOVEMENT_PIERCE_PROFILE" : "MOVEMENT_RAMP_PROFILE";
-        break;
-      case MOVEMENT_RAMP_ZIG_ZAG:
-        id = jet ? "MOVEMENT_PIERCE_LINEAR" : "MOVEMENT_RAMP_ZIG_ZAG";
-        break;
-      case MOVEMENT_RAMP:
-        id = "MOVEMENT_RAMP";
-        break;
-      case MOVEMENT_PLUNGE:
-        id = jet ? "MOVEMENT_PIERCE" : "MOVEMENT_PLUNGE";
-        break;
-      case MOVEMENT_PREDRILL:
-        id = "MOVEMENT_PREDRILL";
-        break;
-      case MOVEMENT_EXTENDED:
-        id = "MOVEMENT_EXTENDED";
-        break;
-      case MOVEMENT_REDUCED:
-        id = "MOVEMENT_REDUCED";
-        break;
-      case MOVEMENT_HIGH_FEED:
-        id = "MOVEMENT_HIGH_FEED";
-        break;
-      case MOVEMENT_FINISH_CUTTING:
-        id = "MOVEMENT_FINISH_CUTTING";
-        break;
-    }
-    if (id == undefined) {
-      id = String(movement);
-    }
-    writeComment(" " + id);
+  var jet = tool.isJetTool && tool.isJetTool();
+  var id;
+
+  switch (movement) {
+    case MOVEMENT_RAPID:
+      id = "MOVEMENT_RAPID";
+      break;
+    case MOVEMENT_LEAD_IN:
+      id = "MOVEMENT_LEAD_IN";
+      break;
+    case MOVEMENT_CUTTING:
+      id = "MOVEMENT_CUTTING";
+      break;
+    case MOVEMENT_LEAD_OUT:
+      id = "MOVEMENT_LEAD_OUT";
+      break;
+    case MOVEMENT_LINK_TRANSITION:
+      id = jet ? "MOVEMENT_BRIDGING" : "MOVEMENT_LINK_TRANSITION";
+      break;
+    case MOVEMENT_LINK_DIRECT:
+      id = "MOVEMENT_LINK_DIRECT";
+      break;
+    case MOVEMENT_RAMP_HELIX:
+      id = jet ? "MOVEMENT_PIERCE_CIRCULAR" : "MOVEMENT_RAMP_HELIX";
+      break;
+    case MOVEMENT_RAMP_PROFILE:
+      id = jet ? "MOVEMENT_PIERCE_PROFILE" : "MOVEMENT_RAMP_PROFILE";
+      break;
+    case MOVEMENT_RAMP_ZIG_ZAG:
+      id = jet ? "MOVEMENT_PIERCE_LINEAR" : "MOVEMENT_RAMP_ZIG_ZAG";
+      break;
+    case MOVEMENT_RAMP:
+      id = "MOVEMENT_RAMP";
+      break;
+    case MOVEMENT_PLUNGE:
+      id = jet ? "MOVEMENT_PIERCE" : "MOVEMENT_PLUNGE";
+      break;
+    case MOVEMENT_PREDRILL:
+      id = "MOVEMENT_PREDRILL";
+      break;
+    case MOVEMENT_EXTENDED:
+      id = "MOVEMENT_EXTENDED";
+      break;
+    case MOVEMENT_REDUCED:
+      id = "MOVEMENT_REDUCED";
+      break;
+    case MOVEMENT_HIGH_FEED:
+      id = "MOVEMENT_HIGH_FEED";
+      break;
+    case MOVEMENT_FINISH_CUTTING:
+      id = "MOVEMENT_FINISH_CUTTING";
+      break;
   }
+
+  if (id == undefined) {
+    id = String(movement);
+  }
+
+  writeComment(eComment.Info, " " + id);
 }
 
 var currentSpindleSpeed = 0;
@@ -927,7 +920,7 @@ function onSpindleSpeed(spindleSpeed) {
 function onCommand(command) {
   if (properties.commentActivities) {
     var stringId = getCommandStringId(command);
-    writeComment(" " + stringId);
+    writeComment(eComment.Info, " " + stringId);
   }
   switch (command) {
     case COMMAND_START_SPINDLE:
@@ -1002,7 +995,7 @@ function writeFirstSection() {
     handleMinMax(ranges.x, xRange);
     handleMinMax(ranges.y, yRange);
     handleMinMax(ranges.z, zRange);
-    if (is3D() && properties.commentWriteTools) {
+    if (is3D()) {
       if (toolZRanges[tool.number]) {
         toolZRanges[tool.number].expandToRange(zRange);
       } else {
@@ -1011,53 +1004,55 @@ function writeFirstSection() {
     }
   }
 
-  writeComment(" ");
-  writeComment(" Ranges table:");
-  writeComment("   X: Min=" + xyzFormat.format(ranges.x.min) + " Max=" + xyzFormat.format(ranges.x.max) + " Size=" + xyzFormat.format(ranges.x.max - ranges.x.min));
-  writeComment("   Y: Min=" + xyzFormat.format(ranges.y.min) + " Max=" + xyzFormat.format(ranges.y.max) + " Size=" + xyzFormat.format(ranges.y.max - ranges.y.min));
-  writeComment("   Z: Min=" + xyzFormat.format(ranges.z.min) + " Max=" + xyzFormat.format(ranges.z.max) + " Size=" + xyzFormat.format(ranges.z.max - ranges.z.min));
+  writeComment(eComment.Info, " ");
+  writeComment(eComment.Info, " Ranges table:");
+  writeComment(eComment.Info, "   X: Min=" + xyzFormat.format(ranges.x.min) + " Max=" + xyzFormat.format(ranges.x.max) + " Size=" + xyzFormat.format(ranges.x.max - ranges.x.min));
+  writeComment(eComment.Info, "   Y: Min=" + xyzFormat.format(ranges.y.min) + " Max=" + xyzFormat.format(ranges.y.max) + " Size=" + xyzFormat.format(ranges.y.max - ranges.y.min));
+  writeComment(eComment.Info, "   Z: Min=" + xyzFormat.format(ranges.z.min) + " Max=" + xyzFormat.format(ranges.z.max) + " Size=" + xyzFormat.format(ranges.z.max - ranges.z.min));
 
-  if (properties.commentWriteTools) {
-    writeComment(" ");
-    writeComment(" Tools table:");
-    var tools = getToolTable();
-    if (tools.getNumberOfTools() > 0) {
-      for (var i = 0; i < tools.getNumberOfTools(); ++i) {
-        var tool = tools.getTool(i);
-        var comment = "  T" + toolFormat.format(tool.number) + " D=" + xyzFormat.format(tool.diameter) + " CR=" + xyzFormat.format(tool.cornerRadius);
-        if ((tool.taperAngle > 0) && (tool.taperAngle < Math.PI)) {
-          comment += " TAPER=" + taperFormat.format(tool.taperAngle) + "deg";
-        }
-        if (toolZRanges[tool.number]) {
-          comment += " - ZMIN=" + xyzFormat.format(toolZRanges[tool.number].getMinimum());
-        }
-        comment += " - " + getToolTypeName(tool.type) + " " + tool.comment;
-        writeComment(comment);
+  writeComment(eComment.Info, " ");
+  writeComment(eComment.Info, " Tools table:");
+  var tools = getToolTable();
+  if (tools.getNumberOfTools() > 0) {
+    for (var i = 0; i < tools.getNumberOfTools(); ++i) {
+      var tool = tools.getTool(i);
+      var comment = "  T" + toolFormat.format(tool.number) + " D=" + xyzFormat.format(tool.diameter) + " CR=" + xyzFormat.format(tool.cornerRadius);
+      if ((tool.taperAngle > 0) && (tool.taperAngle < Math.PI)) {
+        comment += " TAPER=" + taperFormat.format(tool.taperAngle) + "deg";
       }
+      if (toolZRanges[tool.number]) {
+        comment += " - ZMIN=" + xyzFormat.format(toolZRanges[tool.number].getMinimum());
+      }
+      comment += " - " + getToolTypeName(tool.type) + " " + tool.comment;
+      writeComment(eComment.Info, comment);
     }
   }
-  writeln("");
 
-  writeActivityComment(" *** START begin ***");
+    writeComment(eComment.Info, " ");
+
+  writeComment(eComment.Important, " *** START begin ***");
 
   if (properties.gcodeStartFile == "") {
        Start();
   } else {
     loadFile(properties.gcodeStartFile);
   }
-  writeActivityComment(" *** START end ***");
-  writeln("");
+
+  writeComment(eComment.Important, " *** START end ***");
+  writeComment(eComment.Important, " ");
 }
 
 // Output a comment
-function writeComment(text) {
-  let fw = properties.jobSelectedFirmware;
+function writeComment(level, text) {
+  if (level <= properties.jobCommentLevel) {
+    let fw = properties.jobSelectedFirmware;
 
-  if (fw == eFirmware.GRBL) {
-    writeln("(" + String(text).replace(/[\(\)]/g, "") + ")");
-  }
-  else {
-    writeln(";" + String(text).replace(/[\(\)]/g, ""));
+    if (fw == eFirmware.GRBL) {
+      writeln("(" + String(text).replace(/[\(\)]/g, "") + ")");
+    }
+    else {
+      writeln(";" + String(text).replace(/[\(\)]/g, ""));
+    }
   }
 }
 
@@ -1202,13 +1197,12 @@ function loadFile(_file) {
   if (FileSystem.isFile(folder + _file)) {
     var txt = loadText(folder + _file, "utf-8");
     if (txt.length > 0) {
-      writeActivityComment(" --- Start custom gcode " + folder + _file);
+      writeComment(eComment.Info, " --- Start custom gcode " + folder + _file);
       write(txt);
-      writeActivityComment(" --- End custom gcode " + folder + _file);
-      writeln("");
+      writeComment("eComment.Info,  --- End custom gcode " + folder + _file);
     }
   } else {
-    writeComment(" Can't open file " + folder + _file);
+    writeComment(eComment.Important, " Can't open file " + folder + _file);
     error("Can't open file " + folder + _file);
   }
 }
@@ -1233,13 +1227,13 @@ function setCoolant(coolant) {
   // F360 allows only 1 coolant to be defined on an operation. If a coolant channel
   // is active then disable it before we switch to the other
   if (coolantChannelA != 0) {
-    writeActivityComment(" >>> Coolant Channel A: off");
+    writeComment((coolant == 0) ? eComment.Important: eComment.Info, " >>> Coolant Channel A: off");
     coolantChannelA = 0;
     CoolantA(false);
   }
 
   if (coolantChannelB != 0) {
-    writeActivityComment(" >>> Coolant Channel B: off");
+    writeComment((coolant == 0) ? eComment.Important: eComment.Info, " >>> Coolant Channel B: off");
     coolantChannelB = 0;
     CoolantB(false);
   }
@@ -1249,29 +1243,23 @@ function setCoolant(coolant) {
   // issue an warning
   if (coolant != 0) {
     if (properties.cl0_coolantA_Mode == coolant) {
-      writeActivityComment(" >>> Coolant Channel A: " + propertyDefinitions.cl0_coolantA_Mode.values[coolant].title);
+      writeComment(eComment.Important, " >>> Coolant Channel A: " + propertyDefinitions.cl0_coolantA_Mode.values[coolant].title);
       coolantChannelA =  coolant;
       CoolantA(true);
     }
     else if (properties.cl1_coolantB_Mode == coolant) {
-      writeActivityComment(" >>> Coolant Channel B: " + propertyDefinitions.cl1_coolantB_Mode.values[coolant].title);
+      writeComment(eComment.Important, " >>> Coolant Channel B: " + propertyDefinitions.cl1_coolantB_Mode.values[coolant].title);
       coolantChannelB =  coolant;
       CoolantB(true);
     }
     else {
-      writeActivityComment(" >>> Coolant Channels, none set for: " + coolant);
+      writeComment(eComment.Important, " >>> WARNING: Coolant Channels, none set for: " + coolant);
     }
   }
 }
 
 function propertyMmToUnit(_v) {
   return (_v / (unit == IN ? 25.4 : 1));
-}
-
-function writeActivityComment(_comment) {
-  if (properties.commentActivities) {
-    writeComment(_comment);
-  }
 }
 
 /*
@@ -1303,11 +1291,11 @@ function Start() {
 
   // Default
   else {
-    writeComment("   Set Absolute Positioning");
-    writeComment("   Units = " + (unit == IN ? "inch" : "mm"));
-    writeComment("   Disable stepper timeout");
+    writeComment(eComment.Info, "   Set Absolute Positioning");
+    writeComment(eComment.Info, "   Units = " + (unit == IN ? "inch" : "mm"));
+    writeComment(eComment.Info, "   Disable stepper timeout");
     if (properties.jobSetOriginOnStart) {
-      writeComment("   Set current position = 0,0,0");
+      writeComment(eComment.Info, "   Set current position = 0,0,0");
     }
 
     writeBlock(gAbsIncModal.format(90)); // Set to Absolute Positioning
@@ -1343,7 +1331,7 @@ function spindleOn(_spindleSpeed, _clockwise) {
 
   // Is Grbl?
   if (fw == eFirmware.GRBL) {
-    writeActivityComment(" >>> Spindle Speed " + speedFormat.format(_spindleSpeed));
+    writeComment(eComment.Important, " >>> Spindle Speed " + speedFormat.format(_spindleSpeed));
     writeBlock(mFormat.format(_clockwise ? 3 : 4), sOutput.format(spindleSpeed));
   }
 
@@ -1352,10 +1340,11 @@ function spindleOn(_spindleSpeed, _clockwise) {
     if (properties.jobManualSpindlePowerControl) {
       // for manual any positive input speed assumed as enabled. so it's just a flag
       if (!this.spindleEnabled) {
+        writeComment(eComment.Important, " >>> Spindle Speed: Manual");
         askUser("Turn ON " + speedFormat.format(_spindleSpeed) + "RPM", "Spindle", false);
       }
     } else {
-      writeActivityComment(" >>> Spindle Speed " + speedFormat.format(_spindleSpeed));
+      writeComment(eComment.Important, " >>> Spindle Speed " + speedFormat.format(_spindleSpeed));
       writeBlock(mFormat.format(_clockwise ? 3 : 4), sOutput.format(spindleSpeed));
     }
     this.spindleEnabled = true;
@@ -1589,13 +1578,14 @@ function probeTool() {
 
   // Default
   else {
-    writeComment("   Ask User to Attach the Z Probe");
-    writeComment("   Probe");
-    writeComment("   Set Z to probe thickness: " + zFormat.format(propertyMmToUnit(properties.probeThickness)))
+    writeComment(eComment.Important, " Probe to Zero Z");
+    writeComment(eComment.Info, "   Ask User to Attach the Z Probe");
+    writeComment(eComment.Info, "   Do Probing");
+    writeComment(eComment.Info, "   Set Z to probe thickness: " + zFormat.format(propertyMmToUnit(properties.probeThickness)))
     if (properties.toolChangeZ != "") {
-      writeComment("   Retract the tool to " + propertyMmToUnit(properties.toolChangeZ));
+      writeComment(eComment.Info, "   Retract the tool to " + propertyMmToUnit(properties.toolChangeZ));
     }
-    writeComment("   Ask User to Remove the Z Probe");
+    writeComment(eComment.Info, "   Ask User to Remove the Z Probe");
 
     askUser("Attach ZProbe", "Probe", false);
     // refer http://marlinfw.org/docs/gcode/G038.html
