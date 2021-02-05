@@ -29,7 +29,7 @@ var eFirmware = {
     }
   };
 
-var firmware =  eFirmware.MARLIN; 
+var fw =  eFirmware.MARLIN; 
 
 var eComment = {
     Off: 0,
@@ -46,7 +46,7 @@ var eComment = {
 
 // user-defined properties
 properties = {
-  jobSelectedFirmware : firmware,      // Firmware to use in special cases
+  jobSelectedFirmware : fw,            // Firmware to use in special cases
 
   jobManualSpindlePowerControl: true,  // Spindle motor is controlled by manual switch 
 
@@ -397,7 +397,6 @@ propertyDefinitions = {
 };
 
 var sequenceNumber;
-var currentFirmware;
 
 // Formats
 var gFormat = createFormat({ prefix: "G", decimals: 1 });
@@ -465,8 +464,6 @@ function writeBlock() {
 }
 
 function flushMotions() {
-  let fw = properties.jobSelectedFirmware;
-
   if (fw == eFirmware.GRBL) {
   }
 
@@ -487,7 +484,7 @@ function CoolantB(on) {
 
 // Called in every new gcode file
 function onOpen() {
-  let fw = properties.jobSelectedFirmware;
+  fw = properties.jobSelectedFirmware;
 
   if (fw == eFirmware.GRBL) {
     gMotionModal = createModal({}, gFormat); // modal group 1 // G0-G3, ...
@@ -509,8 +506,6 @@ function onOpen() {
 
 // Called at end of gcode file
 function onClose() {
-  let fw = properties.jobSelectedFirmware;
-
   writeComment(eComment.Important, " *** STOP begin ***");
 
   flushMotions();
@@ -538,8 +533,6 @@ var cutterOnCurrentPower;
 var forceSectionToStartWithRapid = false;
 
 function onSection() {
-  let fw = properties.jobSelectedFirmware;
-
   // Every section needs to start with a Rapid to get to the initial location.
   // In the hobby version Rapids have been elliminated and the first command is
   // a onLinear not a onRapid command. This results in not current position being
@@ -762,8 +755,6 @@ function onPower(power) {
 
 // Called on Dwell Manual NC invocation
 function onDwell(seconds) {
-  let fw = properties.jobSelectedFirmware;
-  
   writeComment(eComment.Important, " >>> Dwell");
   if (seconds > 99999.999) {
     warning(localize("Dwelling time is out of range."));
@@ -1009,8 +1000,6 @@ function writeFirstSection() {
 // Output a comment
 function writeComment(level, text) {
   if (level <= properties.jobCommentLevel) {
-    let fw = properties.jobSelectedFirmware;
-
     if (fw == eFirmware.GRBL) {
       writeln("(" + String(text).replace(/[\(\)]/g, "") + ")");
     }
@@ -1178,8 +1167,6 @@ var coolantChannelA = 0;
 var coolantChannelB = 0;
 
 function setCoolant(coolant) {
-  let fw = properties.jobSelectedFirmware;
-
   // As long as we are not disabling coolant (= 0), then if either of the coolant
   // channels are already operating in the mode requested then there is
   // nothing to do
@@ -1243,8 +1230,6 @@ Firmware3dPrinterLike.prototype.constructor = Firmware3dPrinterLike;
 */
 
 function Start() {
-  let fw = properties.jobSelectedFirmware;
-
   // Is Grbl?
   if (fw == eFirmware.GRBL) {
     writeBlock(gAbsIncModal.format(90)); // Set to Absolute Positioning
@@ -1277,8 +1262,6 @@ function Start() {
 }
 
 function end() {
-  let fw = properties.jobSelectedFirmware;
-
   // Is Grbl?
   if (fw == eFirmware.GRBL) {
     writeBlock(mFormat.format(30));
@@ -1291,8 +1274,6 @@ function end() {
 }
 
 function spindleOn(_spindleSpeed, _clockwise) {
-  let fw = properties.jobSelectedFirmware;
-
   // Is Grbl?
   if (fw == eFirmware.GRBL) {
     writeComment(eComment.Important, " >>> Spindle Speed " + speedFormat.format(_spindleSpeed));
@@ -1316,8 +1297,6 @@ function spindleOn(_spindleSpeed, _clockwise) {
 }
 
 function spindleOff() {
-  let fw = properties.jobSelectedFirmware;
-
   // Is Grbl?
   if (fw == eFirmware.GRBL) {
     writeBlock(mFormat.format(5));
@@ -1336,7 +1315,6 @@ function spindleOff() {
 }
 
 function laserOn(power) {
-  let fw = properties.jobSelectedFirmware;
   var laser_pwm = power / 100 * 255;
 
   // Firmware is Grbl
@@ -1351,7 +1329,7 @@ function laserOn(power) {
         writeBlock(mFormat.format(106), sFormat.format(laser_pwm));
         break;
       case 3:
-        if (fw = eFirmware.REPRAP) {
+        if (fw == eFirmware.REPRAP) {
           writeBlock(mFormat.format(3), sFormat.format(laser_pwm));
         } else {
           writeBlock(mFormat.format(3), oFormat.format(laser_pwm));
@@ -1365,8 +1343,6 @@ function laserOn(power) {
 }
 
 function laserOff() {
-  let fw = properties.jobSelectedFirmware;
-
   // Firmware is Grbl
   if (fw == eFirmware.GRBL) {
     writeBlock(mFormat.format(5));
@@ -1389,8 +1365,6 @@ function laserOff() {
 }
 
 function display_text(txt) {
-  let fw = properties.jobSelectedFirmware;
-
   // Firmware is Grbl
   if (fw == eFirmware.GRBL) {
     // Don't display text
@@ -1409,7 +1383,6 @@ function circular(clockwise, cx, cy, cz, x, y, z, feed) {
   }
 
   var start = getCurrentPosition();
-  let fw = properties.jobSelectedFirmware;
 
   // Firmware is Grbl
   if (fw == eFirmware.GRBL) {
@@ -1476,8 +1449,6 @@ function circular(clockwise, cx, cy, cz, x, y, z, feed) {
 }
 
 function askUser(text, title, allowJog) {
-  let fw = properties.jobSelectedFirmware;
-
   // Firmware is RepRap?
   if (fw == eFirmware.REPRAP) {
     var v1 = " P\"" + text + "\" R\"" + title + "\" S3";
@@ -1492,8 +1463,6 @@ function askUser(text, title, allowJog) {
 }
 
 function toolChange() {
-  let fw = properties.jobSelectedFirmware;
-
   // Grbl tool change?
   if (fw == eFirmware.GRBL) {
     
@@ -1535,8 +1504,6 @@ function toolChange() {
 }
 
 function probeTool() {
-  let fw = properties.jobSelectedFirmware;
-
   // Is Grbl?
   if (fw == eFirmware.GRBL) {
     writeComment(eComment.Important, " >>> WARNING: No probing implemented for GRBL");
