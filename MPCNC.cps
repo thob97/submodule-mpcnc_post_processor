@@ -6,9 +6,17 @@ MPCNC posts processor for milling and laser/plasma cutting.
 
 */
 
-//--------------------- Refactored Firmware ----------------------
-
 description = "MPCNC Milling/Laser - Marlin 2.0, Grbl 1.1, RepRap";
+vendor = "flyfisher604";
+vendorUrl = "https://github.com/flyfisher604/mpcnc_post_processor";
+
+// Internal properties
+certificationLevel = 2;
+extension = "gcode";
+setCodePage("ascii");
+capabilities = CAPABILITY_MILLING | CAPABILITY_JET;
+
+machineMode = undefined; //TYPE_MILLING, TYPE_JET
 
 var eFirmware = {
     MARLIN: 0,
@@ -35,56 +43,6 @@ var eComment = {
       3: {name: "Debug", value: 3}
     }
 };
-
-machineMode = undefined; //TYPE_MILLING, TYPE_JET
-
-/*
-mergeProperties(properties, properties3dPrinter);
-mergeProperties(propertyDefinitions, propertyDefinitions3dPrinter);
-*/
-
-function flushMotions() {
-  let fw = properties.jobSelectedFirmware;
-
-  if (fw == eFirmware.GRBL) {
-  }
-
-  // Default
-  else {
-    writeBlock(mFormat.format(400));
-  }
-}
-
-// Output the On or Off property that corresponds to either channel A or B
-function CoolantA(on) {
-  writeBlock(on ? properties.cl2_coolantAOn : properties.cl3_coolantAOff);
-}
-
-function CoolantB(on) {
-  writeBlock(on ? properties.cl4_coolantBOn : properties.cl5_coolantBOff);
-}
-
-
-//--------------------- Common ----------------------
-
-/*
-
-https://github.com/flyfisher604/mpcnc_post_processor
-
-MPCNC posts processor for milling and laser/plasma cutting.
-  
-*/
-
-// Internal properties
-certificationLevel = 2;
-extension = "gcode";
-setCodePage("ascii");
-capabilities = CAPABILITY_MILLING | CAPABILITY_JET;
-
-// vendor of MPCNC
-vendor = "flyfisher604";
-vendorUrl = "https://github.com/flyfisher604/mpcnc_post_processor";
-
 
 // user-defined properties
 properties = {
@@ -244,7 +202,6 @@ propertyDefinitions = {
     type: "spatial", default_mm: 1000, default_in: 39.37
   },
 
-
   mapD_RestoreFirstRapids: {
     title: "Map: First G1 -> G0 Rapids", description: "Convert first G1 of a cut to G0 Rapids", group: 3,
     type: "boolean", default_mm: false, default_in: false
@@ -261,7 +218,6 @@ propertyDefinitions = {
     title: "Map: Allow Rapid Z", description: "If G01 to Rapids allowed, then include vertical retracts and safe descents", group: 3,
     type: "boolean", default_mm: true, default_in: true
   },
-
 
   toolChangeEnabled: {
     title: "Change: Enabled", description: "Enable tool change code (bultin tool change requires LCD display)", group: 4,
@@ -352,28 +308,7 @@ propertyDefinitions = {
     type: "file", default_mm: "", default_in: ""
   },
 
-
-  DuetMillingMode: {
-    title: "Duet: Milling mode", description: "GCode command to setup Duet3d milling mode", group: 10,
-    type: "string", default_mm: "M453 P2 I0 R30000 F200", default_in: "M453 P2 I0 R30000 F200"
-  },
-  DuetLaserMode: {
-    title: "Duet: Laser mode", description: "GCode command to setup Duet3d laser mode", group: 10,
-    type: "string", default_mm: "M452 P2 I0 R255 F200", default_in: "M452 P2 I0 R255 F200"
-  },
-
-
-  GrblCutterMode: {
-    title: "GRBL: Laser mode", description: "GRBL mode of the laser/plasma cutter", group: 11,
-    type: "integer", default_mm: 4, default_in: 4,
-    values: [
-        { title: "M4 S{PWM}/M5 dynamic power", id: 4 },
-        { title: "M3 S{PWM}/M5 static power", id: 3 },
-    ]
-  },
-
   // Coolant
-
   cl0_coolantA_Mode: {
     title: "Coolant: A Mode", description: "Enable channel A when tool is set this coolant", group: 8,
     type: "integer", default_mm: 0, default_in: 0,
@@ -442,17 +377,27 @@ propertyDefinitions = {
       { title: "Grbl: M9 (off)", id: "M9" }
     ]
   },
+
+  DuetMillingMode: {
+    title: "Duet: Milling mode", description: "GCode command to setup Duet3d milling mode", group: 9,
+    type: "string", default_mm: "M453 P2 I0 R30000 F200", default_in: "M453 P2 I0 R30000 F200"
+  },
+  DuetLaserMode: {
+    title: "Duet: Laser mode", description: "GCode command to setup Duet3d laser mode", group: 9,
+    type: "string", default_mm: "M452 P2 I0 R255 F200", default_in: "M452 P2 I0 R255 F200"
+  },
+  GrblCutterMode: {
+    title: "GRBL: Laser mode", description: "GRBL mode of the laser/plasma cutter", group: 9,
+    type: "integer", default_mm: 4, default_in: 4,
+    values: [
+        { title: "M4 S{PWM}/M5 dynamic power", id: 4 },
+        { title: "M3 S{PWM}/M5 static power", id: 3 },
+    ]
+  },
 };
 
-/*
-
-https://github.com/guffy1234/mpcnc_posts_processor
-
-MPCNC posts processor for milling and laser/plasma cutting.
-
-*/
-
 var sequenceNumber;
+var currentFirmware;
 
 // Formats
 var gFormat = createFormat({ prefix: "G", decimals: 1 });
@@ -519,7 +464,26 @@ function writeBlock() {
   }
 }
 
-var currentFirmware;
+function flushMotions() {
+  let fw = properties.jobSelectedFirmware;
+
+  if (fw == eFirmware.GRBL) {
+  }
+
+  // Default
+  else {
+    writeBlock(mFormat.format(400));
+  }
+}
+
+// Coolant
+function CoolantA(on) {
+  writeBlock(on ? properties.cl2_coolantAOn : properties.cl3_coolantAOff);
+}
+
+function CoolantB(on) {
+  writeBlock(on ? properties.cl4_coolantBOn : properties.cl5_coolantBOff);
+}
 
 // Called in every new gcode file
 function onOpen() {
@@ -1028,7 +992,7 @@ function writeFirstSection() {
     }
   }
 
-    writeComment(eComment.Info, " ");
+  writeComment(eComment.Info, " ");
 
   writeComment(eComment.Important, " *** START begin ***");
 
@@ -1311,6 +1275,7 @@ function Start() {
     }
   }
 }
+
 function end() {
   let fw = properties.jobSelectedFirmware;
 
@@ -1324,7 +1289,6 @@ function end() {
     display_text("Job end");
   }
 }
-
 
 function spindleOn(_spindleSpeed, _clockwise) {
   let fw = properties.jobSelectedFirmware;
@@ -1350,6 +1314,7 @@ function spindleOn(_spindleSpeed, _clockwise) {
     this.spindleEnabled = true;
   }
 }
+
 function spindleOff() {
   let fw = properties.jobSelectedFirmware;
 
@@ -1574,6 +1539,7 @@ function probeTool() {
 
   // Is Grbl?
   if (fw == eFirmware.GRBL) {
+    writeComment(eComment.Important, " >>> WARNING: No probing implemented for GRBL");
   }
 
   // Default
