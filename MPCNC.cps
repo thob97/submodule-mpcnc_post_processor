@@ -42,7 +42,7 @@ function flushMotions() {
   }
 }
 
-// Coolant
+// Output the On or Off property that corresponds to either channel A or B
 function CoolantA(on) {
   writeBlock(on ? properties.cl2_coolantAOn : properties.cl3_coolantAOff);
 }
