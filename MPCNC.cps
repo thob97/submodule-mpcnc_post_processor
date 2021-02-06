@@ -111,7 +111,7 @@ propertyDefinitions = {
 
   job0_SelectedFirmware: {
     title: "Job: CNC Firmware", description: "Dialect of GCode to create", group: 1,
-    type: "integer", default_mm: 0, default_in: 0,
+    type: "integer", default_mm: eFirmware.MARLIN, default_in: eFirmware.MARLIN,
     values: [
       { title: eFirmware.prop[eFirmware.MARLIN].name, id: eFirmware.MARLIN },
       { title: eFirmware.prop[eFirmware.GRBL].name, id: eFirmware.GRBL },
@@ -129,7 +129,7 @@ propertyDefinitions = {
   },
   job3_CommentLevel: {
     title: "Job: Comment Level", description: "Controls the comments include", group: 1,
-    type: "integer", default_mm: 3, default_in: 3,
+    type: "integer", default_mm: eComment.Info, default_in: eComment.Info,
     values: [
       { title: eComment.prop[eComment.Off].name, id: eComment.Off },
       { title: eComment.prop[eComment.Important].name, id: eComment.Important },
@@ -158,7 +158,7 @@ propertyDefinitions = {
     type: "boolean", default_mm: true, default_in: true
   },
   job9_GoOriginOnFinish: {
-    title: "Job: At end go to 0,0", description: "Go to X0 Y0 at gcode end, Z unchanged", group: 1,
+    title: "Job: At end go to 0,0", description: "Go to X0 Y0 at gcode end, Z remains unchanged", group: 1,
     type: "boolean", default_mm: true, default_in: true
   },
   
@@ -187,7 +187,7 @@ propertyDefinitions = {
     type: "spatial", default_mm: 180, default_in: 7.08
   },
   frD_MaxCutSpeedXYZ: {
-    title: "Feed: Max Toolpath Speed", description: "Maximum scaled feedrate (mm/min; in/min)", group: 2,
+    title: "Feed: Max Toolpath Speed", description: "Maximum scaled feedrate for toolpath (mm/min; in/min)", group: 2,
     type: "spatial", default_mm: 1000, default_in: 39.37
   },
 
@@ -205,7 +205,7 @@ propertyDefinitions = {
   },
   mapG_AllowRapidZ: {
     title: "Map: Allow Rapid Z", description: "Enable to include vertical retracts and safe descents", group: 3,
-    type: "boolean", default_mm: true, default_in: true
+    type: "boolean", default_mm: false, default_in: false
   },
 
   toolChange0_Enabled: {
@@ -234,7 +234,7 @@ propertyDefinitions = {
     type: "boolean", default_mm: false, default_in: false
   },
   probe2_OnToolChange: {
-    title: "Probe: Afterward Tool Change", description: "After tool change, probe Z at the current location", group: 5,
+    title: "Probe: After Tool Change", description: "After tool change, probe Z at the current location", group: 5,
     type: "boolean", default_mm: false, default_in: false
   },
   probe3_Thickness: {
@@ -246,11 +246,11 @@ propertyDefinitions = {
     type: "boolean", default_mm: true, default_in: true
   },
   probe5_G38Target: {
-    title: "Probe: G38 target", description: "Probing's furthest Z position", group: 5,
+    title: "Probe: G38 target", description: "G38 Probing's furthest Z position", group: 5,
     type: "spatial", default_mm: -10, default_in: -0.5
   },
   probe6_G38Speed: {
-    title: "Probe: G38 speed", description: "Probing's speed (mm/min; in/min)", group: 5,
+    title: "Probe: G38 speed", description: "G38 Probing's speed (mm/min; in/min)", group: 5,
     type: "spatial", default_mm: 30, default_in: 1.2
   },
 
@@ -267,7 +267,7 @@ propertyDefinitions = {
     type: "number", default_mm: 40, default_in: 40
   },
   cutterMarlinMode: {
-    title: "Laser: Marlin/Reprap mode", description: "Marlin/Reprap mode of the laser/plasma cutter", group: 6,
+    title: "Laser: Marlin/Reprap Mode", description: "Marlin/Reprap mode of the laser/plasma cutter", group: 6,
     type: "integer", default_mm: 106, default_in: 106,
     values: [
       { title: "Fan - M106 S{PWM}/M107", id: 106 },
@@ -276,11 +276,11 @@ propertyDefinitions = {
     ]
   },
   cutterMarlinPin: {
-    title: "Laser: Marlin M42 pin", description: "Marlin custom pin number for the laser/plasma cutter", group: 6,
+    title: "Laser: Marlin M42 Pin", description: "Marlin custom pin number for the laser/plasma cutter", group: 6,
     type: "integer", default_mm: 4, default_in: 4
   },
   cutterGrblMode: {
-    title: "Laser: GRBL mode", description: "GRBL mode of the laser/plasma cutter", group: 6,
+    title: "Laser: GRBL Mode", description: "GRBL mode of the laser/plasma cutter", group: 6,
     type: "integer", default_mm: 4, default_in: 4,
     values: [
         { title: "M4 S{PWM}/M5 dynamic power", id: 4 },
