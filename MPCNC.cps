@@ -67,7 +67,7 @@ properties = {
 
   mapD_RestoreFirstRapids: false,      // Map first G01 --> G00 
   mapE_RestoreRapids: false,           // Map G01 --> G00 for SafeTravelsAboveZ 
-  mapF_SafeZ: "5",                     // G01 mapped to G00 if Z is >= jobSafeZRapid
+  mapF_SafeZ: "Retract:15",            // G01 mapped to G00 if Z is >= jobSafeZRapid
   mapG_AllowRapidZ: false,             // Allow G01 --> G00 for vertical retracts and Z descents above safe
 
   toolChange0_Enabled: false,          // Enable tool change code (bultin tool change requires LCD display)
@@ -200,8 +200,8 @@ propertyDefinitions = {
     type: "boolean", default_mm: false, default_in: false
   },
   mapF_SafeZ: {
-    title: "Map: Safe Z to Rapid", description: "Must be above or equal to this value to map G1s --> G0s", group: 3,
-    type: "string", default_mm: "10", default_in: "0.590551"
+    title: "Map: Safe Z to Rapid", description: "Must be above or equal to this value to map G1s --> G0s; constant or keyword (see docs)", group: 3,
+    type: "string", default_mm: "Retract:15", default_in: "Retract:15"
   },
   mapG_AllowRapidZ: {
     title: "Map: Allow Rapid Z", description: "Enable to include vertical retracts and safe descents", group: 3,
@@ -513,16 +513,89 @@ function parseSafeZProperty() {
   writeComment(eComment.Debug, " parseSafeZProperty: safeZHeightDefault = " + safeZHeightDefault);
 }
 
-function setSafeZforSection()
+function safeZforSection(_section) 
 {
-  
+  if (properties.mapE_RestoreRapids) {
+    switch (safeZMode) {
+      case eSafeZ.CONST:
+        safeZHeight = safeZHeightDefault;
+        writeComment(eComment.Important, " SafeZ using const: " + safeZHeight);
+        break;
+
+      case eSafeZ.FEED:
+        if (hasParameter("operation:feedHeight_value") && hasParameter("operation:feedHeight_absolute")) {
+          let feed = _section.getParameter("operation:feedHeight_value");
+          let abs = _section.getParameter("operation:feedHeight_absolute");
+
+          if (abs == 1) {
+            safeZHeight = feed;
+            writeComment(eComment.Info, " SafeZ feed level: " + safeZHeight);
+          }
+          else {
+            safeZHeight = safeZHeightDefault;
+            writeComment(eComment.Important, " SafeZ feed level not abs: " + safeZHeight);
+          }
+        }
+        else {
+          safeZHeight = safeZHeightDefault;
+          writeComment(eComment.Important, " SafeZ feed level not defined: " + safeZHeight);
+        }
+        break;
+
+      case eSafeZ.RETRACT:
+        if (hasParameter("operation:retractHeight_value") && hasParameter("operation:retractHeight_absolute")) {
+          let retract = _section.getParameter("operation:retractHeight_value");
+          let abs = _section.getParameter("operation:retractHeight_absolute");
+
+          if (abs == 1) {
+            safeZHeight = retract;
+            writeComment(eComment.Info, " SafeZ retract level: " + safeZHeight);
+          }
+          else {
+            safeZHeight = safeZHeightDefault;
+            writeComment(eComment.Important, " SafeZ retract level not abs: " + safeZHeight);
+          }
+        }
+        else {
+          safeZHeight = safeZHeightDefault;
+          writeComment(eComment.Important, " SafeZ: retract level not defined: " + safeZHeight);
+        }
+        break;
+
+      case eSafeZ.CLEARANCE:
+        if (hasParameter("operation:clearanceHeight_value") && hasParameter("operation:clearanceHeight_absolute")) {
+          var clearance = _section.getParameter("operation:clearanceHeight_value");
+          let abs = _section.getParameter("operation:clearanceHeight_absolute");
+
+          if (abs == 1) {
+            safeZHeight = clearance;
+            writeComment(eComment.Info, " SafeZ clearance level: " + safeZHeight);
+          }
+          else {
+            safeZHeight = safeZHeightDefault;
+            writeComment(eComment.Important, " SafeZ clearance level not abs: " + safeZHeight);
+          }
+        }
+        else {
+          safeZHeight = safeZHeightDefault;
+          writeComment(eComment.Important, " SafeZ clearance level not defined: " + safeZHeight);
+        }
+        break;
+        
+      case eSafeZ.ERROR:
+        safeZHeight = safeZHeightDefault;
+        writeComment(eComment.Important, " >>> WARNING: " + propertyDefinitions.mapF_SafeZ.title + "format error: " + safeZHeight);
+        break;
+    }
+  }
 }
 
 
 // Returns true if the rules to convert G1s to G0s are satisfied
 function isSafeToRapid(x, y, z) {
   if (properties.mapE_RestoreRapids) {
-    let zSafe = (z >= properties.mapF_SafeZ);
+    //let zSafe = (z >= properties.mapF_SafeZ);
+    let zSafe = (z >= safeZHeight);
 
     // Destination z must be in safe zone.
     if (zSafe) {
@@ -645,6 +718,9 @@ function onSection() {
   }
 
   writeComment(eComment.Important, " *** SECTION begin ***");
+
+  // Determine the Safe Z Height to map G1s to G0s
+  safeZforSection(currentSection);
 
   // Do a tool change if tool changes are enabled and its not the first section and this section uses
   // a different tool then the previous section
@@ -1076,7 +1152,7 @@ function writeInformation() {
   writeComment(eComment.Info, " G1->G0 Mapping Properties:");
   writeComment(eComment.Info, "   Map: First G1 -> G0 Rapid = " + properties.mapD_RestoreFirstRapids);
   writeComment(eComment.Info, "   Map: G1s -> G0 Rapids = " + properties.mapE_RestoreRapids);
-  writeComment(eComment.Info, "   Map: Safe Z to Rapid = " + properties.mapF_SafeZ);
+  writeComment(eComment.Info, "   Map: SafeZ Mode = " + eSafeZ.prop[safeZMode].name + " : default = " + safeZHeightDefault);
   writeComment(eComment.Info, "   Map: Allow Rapid Z = " + properties.mapG_AllowRapidZ);
 
   writeComment(eComment.Info, " ");

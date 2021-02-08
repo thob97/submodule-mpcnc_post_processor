@@ -91,19 +91,22 @@ identified in forums as the tool being initially dragged across the work surface
 
 If [Map: G1s -> G0s] is true then allows G1 XY cut movements (i.e. no change in Z) that occur
 at a height greater or equal to [Map: Safe Z to Rapid] to be converted to G0 Rapids.
-Note: this assumes that the top of material is 0 in F360 and that any Z above
-[Map: Safe Z to Rapid] is a movement in the air and clear of obstacles. If top of material is not 0
-or there are holddown clamp then adjust [Map: Safe Z to Rapid] appropriately.
+Note: this assumes that any Z above [Map: Safe Z to Rapid] is a movement in the air and clear of
+obstacles. Can be defined as a number or one of F360's planes (Feed, Retract or Clearance).
+
+Map: Safe Z for Rapids may be defined as:
+* As a constant numeric value - safe Z will then always be this value for all sections, or
+* As a reference to a F360 Height - safe Z will then follow the Height defined within the operation's Height tab. Allowable Heights are: Feed, Retract, or Clearance. The Height must be followed by a ":" and then a numeric value. The value will be used if Height is not defined for a section.
 
 If [Map: Allow Rapid Z] is true then G1 Z cut movements that either move straight up
 and end above [Map: Safe Z to Rapid], or straight down with the start and end positions both
 above [Map: Safe Z to Rapid] are included. Only occurs if [Map: G1s -> G0s] is also true.
 
-|Title|Description|Default|
-|---|---|---|
-Map: First G1 -> G0 Rapid|Converts the first G1 of a cut to G0 Rapid|**false**|
-Map: G1s -> G0s|Allow G1 cuts to be converted to Rapid G0 moves when safe and appropriate.|**false**|
-Map: Safe Z for Rapids|A G1 cut's Z must be >= to this to be mapped to a Rapid G0.|**10**|
+|Title|Description|Default|Format|
+|---|---|---|---|
+Map: First G1 -> G0 Rapid|Converts the first G1 of a cut to G0 Rapid|**false**| |
+Map: G1s -> G0s|Allow G1 cuts to be converted to Rapid G0 moves when safe and appropriate.|**false**| |
+Map: Safe Z for Rapids|A G1 cut's Z must be >= to this to be mapped to a Rapid G0. Can be a number (used for all sections) or a reference to F360's Height followed by a default if Height is not available.|**Retract:15**| \<number\> or \<F360 Height\>:\<number\>; e.g. 10 or Retract:7 or Feed:5|
 Map: Allow Rapid Z|Include vertical cut if they are safe.|**false**|
 
 ## Group 4: Tool change Properties
