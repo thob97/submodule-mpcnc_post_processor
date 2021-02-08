@@ -772,15 +772,30 @@ function onParameter(name, value) {
     writeComment(eComment.Important, value);
     writeComment(eComment.Important, " Posts processor: " + FileSystem.getFilename(getConfigurationPath()));
   }
+
   // Date
-  if (name == "generated-at") writeComment(eComment.Important, " Gcode generated: " + value + " GMT");
+  else if (name == "generated-at") {
+    writeComment(eComment.Important, " Gcode generated: " + value + " GMT");
+  }
+
   // Document
-  if (name == "document-path") writeComment(eComment.Important, " Document: " + value);
+  else if (name == "document-path") {
+    writeComment(eComment.Important, " Document: " + value);
+  }
+
   // Setup
-  if (name == "job-description") writeComment(eComment.Important, " Setup: " + value);
+  else if (name == "job-description") {
+    writeComment(eComment.Important, " Setup: " + value);
+  }
 
   // Get section comment
-  if (name == "operation-comment") sectionComment = value;
+  else if (name == "operation-comment") {
+    sectionComment = value;
+  }
+
+  else {
+    writeComment(eComment.Debug, " param: " + name + " = " + value);
+  }
 }
 
 function onMovement(movement) {
