@@ -67,7 +67,7 @@ properties = {
 
   mapD_RestoreFirstRapids: false,      // Map first G01 --> G00 
   mapE_RestoreRapids: false,           // Map G01 --> G00 for SafeTravelsAboveZ 
-  mapF_SafeZ: 5,                       // G01 mapped to G00 if Z is >= jobSafeZRapid
+  mapF_SafeZ: "Retract:15",            // G01 mapped to G00 if Z is >= jobSafeZRapid
   mapG_AllowRapidZ: false,             // Allow G01 --> G00 for vertical retracts and Z descents above safe
 
   toolChange0_Enabled: false,          // Enable tool change code (bultin tool change requires LCD display)
@@ -200,8 +200,8 @@ propertyDefinitions = {
     type: "boolean", default_mm: false, default_in: false
   },
   mapF_SafeZ: {
-    title: "Map: Safe Z to Rapid", description: "Must be above or equal to this value to map G1s --> G0s", group: 3,
-    type: "integer", default_mm: 10, default_in: 0.590551
+    title: "Map: Safe Z to Rapid", description: "Must be above or equal to this value to map G1s --> G0s; constant or keyword (see docs)", group: 3,
+    type: "string", default_mm: "Retract:15", default_in: "Retract:15"
   },
   mapG_AllowRapidZ: {
     title: "Map: Allow Rapid Z", description: "Enable to include vertical retracts and safe descents", group: 3,
@@ -287,7 +287,6 @@ propertyDefinitions = {
         { title: "M3 S{PWM}/M5 static power", id: 3 },
     ]
   },
-
 
   gcodeStartFile: {
     title: "Extern: Start File", description: "File with custom Gcode for header/start (in nc folder)", group: 7,
@@ -463,6 +462,174 @@ function flushMotions() {
   }
 }
 
+//---------------- Safe Rapids ----------------
+
+var eSafeZ = {
+  CONST: 0,
+  FEED: 1,
+  RETRACT: 2,
+  CLEARANCE: 3,
+  ERROR: 4,
+  prop: {
+    0: {name: "Const", regex: /^\d+\.?\d*$/, numRegEx: /^(\d+\.?\d*)$/, value: 0},
+    1: {name: "Feed", regex: /^Feed:/i, numRegEx: /:(\d+\.?\d*)$/, value: 1},
+    2: {name: "Retract", regex: /^Retract:/i, numRegEx: /:(\d+\.?\d*)$/, alue: 2},
+    3: {name: "Clearance", regex: /^Clearance:/i, numRegEx: /:(\d+\.?\d*)$/, value: 3},
+    4: {name: "Error", regex: /^$/, numRegEx: /^$/, value: 4}
+  }
+};
+
+var safeZMode = eSafeZ.CONST;
+var safeZHeightDefault = 15;
+var safeZHeight;
+
+function parseSafeZProperty() {
+  var str = properties.mapF_SafeZ;
+
+  // Look for either a number by itself or 'Feed:', 'Retract:' or 'Clearance:'
+  for (safeZMode = eSafeZ.CONST; safeZMode < eSafeZ.ERROR; safeZMode++) {
+    if (str.search(eSafeZ.prop[safeZMode].regex) == 0) {
+      break;
+    }
+  }
+
+  // If it was not an error then get the number
+  if (safeZMode != eSafeZ.ERROR) {
+    safeZHeightDefault = str.match(eSafeZ.prop[safeZMode].numRegEx);
+
+    if ((safeZHeightDefault == null) || (safeZHeightDefault.length !=2)) {
+      writeComment(eComment.Debug, " parseSafeZProperty: " + safeZHeightDefault);
+      writeComment(eComment.Debug, " parseSafeZProperty.length: " + (safeZHeightDefault != null? safeZHeightDefault.length : "na"));
+      writeComment(eComment.Debug, " parseSafeZProperty: Couldn't find number");
+      safeZMode = eSafeZ.ERROR;
+      safeZHeightDefault = 15;
+    }
+    else {
+      safeZHeightDefault = safeZHeightDefault[1];
+    }
+  }
+
+  writeComment(eComment.Debug, " parseSafeZProperty: safeZMode = '" + eSafeZ.prop[safeZMode].name + "'");
+  writeComment(eComment.Debug, " parseSafeZProperty: safeZHeightDefault = " + safeZHeightDefault);
+}
+
+function safeZforSection(_section) 
+{
+  if (properties.mapE_RestoreRapids) {
+    switch (safeZMode) {
+      case eSafeZ.CONST:
+        safeZHeight = safeZHeightDefault;
+        writeComment(eComment.Important, " SafeZ using const: " + safeZHeight);
+        break;
+
+      case eSafeZ.FEED:
+        if (hasParameter("operation:feedHeight_value") && hasParameter("operation:feedHeight_absolute")) {
+          let feed = _section.getParameter("operation:feedHeight_value");
+          let abs = _section.getParameter("operation:feedHeight_absolute");
+
+          if (abs == 1) {
+            safeZHeight = feed;
+            writeComment(eComment.Info, " SafeZ feed level: " + safeZHeight);
+          }
+          else {
+            safeZHeight = safeZHeightDefault;
+            writeComment(eComment.Important, " SafeZ feed level not abs: " + safeZHeight);
+          }
+        }
+        else {
+          safeZHeight = safeZHeightDefault;
+          writeComment(eComment.Important, " SafeZ feed level not defined: " + safeZHeight);
+        }
+        break;
+
+      case eSafeZ.RETRACT:
+        if (hasParameter("operation:retractHeight_value") && hasParameter("operation:retractHeight_absolute")) {
+          let retract = _section.getParameter("operation:retractHeight_value");
+          let abs = _section.getParameter("operation:retractHeight_absolute");
+
+          if (abs == 1) {
+            safeZHeight = retract;
+            writeComment(eComment.Info, " SafeZ retract level: " + safeZHeight);
+          }
+          else {
+            safeZHeight = safeZHeightDefault;
+            writeComment(eComment.Important, " SafeZ retract level not abs: " + safeZHeight);
+          }
+        }
+        else {
+          safeZHeight = safeZHeightDefault;
+          writeComment(eComment.Important, " SafeZ: retract level not defined: " + safeZHeight);
+        }
+        break;
+
+      case eSafeZ.CLEARANCE:
+        if (hasParameter("operation:clearanceHeight_value") && hasParameter("operation:clearanceHeight_absolute")) {
+          var clearance = _section.getParameter("operation:clearanceHeight_value");
+          let abs = _section.getParameter("operation:clearanceHeight_absolute");
+
+          if (abs == 1) {
+            safeZHeight = clearance;
+            writeComment(eComment.Info, " SafeZ clearance level: " + safeZHeight);
+          }
+          else {
+            safeZHeight = safeZHeightDefault;
+            writeComment(eComment.Important, " SafeZ clearance level not abs: " + safeZHeight);
+          }
+        }
+        else {
+          safeZHeight = safeZHeightDefault;
+          writeComment(eComment.Important, " SafeZ clearance level not defined: " + safeZHeight);
+        }
+        break;
+        
+      case eSafeZ.ERROR:
+        safeZHeight = safeZHeightDefault;
+        writeComment(eComment.Important, " >>> WARNING: " + propertyDefinitions.mapF_SafeZ.title + "format error: " + safeZHeight);
+        break;
+    }
+  }
+}
+
+
+// Returns true if the rules to convert G1s to G0s are satisfied
+function isSafeToRapid(x, y, z) {
+  if (properties.mapE_RestoreRapids) {
+    //let zSafe = (z >= properties.mapF_SafeZ);
+    let zSafe = (z >= safeZHeight);
+
+    // Destination z must be in safe zone.
+    if (zSafe) {
+      let cur = getCurrentPosition();
+      let zConstant = (z == cur.z);
+      let zUp = (z > cur.z);
+      let xyConstant = ((x == cur.x) && (y == cur.y));
+      let curZSafe = (cur.z >= properties.mapF_SafeZ);
+
+      // Restore Rapids only when the target Z is safe and
+      //   Case 1: Z is not changing, but XY are
+      //   Case 2: Z is increasing, but XY constant
+
+      // Z is not changing and we know we are in the safe zone
+      if (zConstant) {
+        return true;
+      }
+
+      // We include moves of Z up as long as xy are constant
+      else if (properties.mapG_AllowRapidZ && zUp && xyConstant) {
+        return true;
+      }
+
+      // We include moves of Z down as long as xy are constant and z always remains safe
+      else if (properties.mapG_AllowRapidZ && (!zUp) && xyConstant && curZSafe) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+//---------------- Coolant ----------------
 // Coolant
 function CoolantA(on) {
   writeBlock(on ? properties.cl2_coolantAOn : properties.cl3_coolantAOff);
@@ -476,22 +643,34 @@ function CoolantB(on) {
 function onOpen() {
   fw = properties.job0_SelectedFirmware;
 
+  // Output anything special to start the GCode
+  if (fw == eFirmware.GRBL) {
+    writeln("%");
+  }
+
+  // Configure the GCode G commands
   if (fw == eFirmware.GRBL) {
     gMotionModal = createModal({}, gFormat); // modal group 1 // G0-G3, ...
-    writeln("%");
   }
   else {
     gMotionModal = createModal({ force: true }, gFormat); // modal group 1 // G0-G3, ...
   }
 
+  // Configure how the feedrate is formatted
   if (properties.fr2_EnforceFeedrate) {
     fOutput = createVariable({ force: true }, fFormat);
   }
 
+  // Set the starting sequence number for line numbering
   sequenceNumber = properties.job6_SequenceNumberStart;
+
+  // Set the seperator used between text
   if (!properties.job8_SeparateWordsWithSpace) {
     setWordSeparator("");
   }
+
+  // Determine the safeZHeight to do rapids
+  parseSafeZProperty();
 }
 
 // Called at end of gcode file
@@ -539,6 +718,9 @@ function onSection() {
   }
 
   writeComment(eComment.Important, " *** SECTION begin ***");
+
+  // Determine the Safe Z Height to map G1s to G0s
+  safeZforSection(currentSection);
 
   // Do a tool change if tool changes are enabled and its not the first section and this section uses
   // a different tool then the previous section
@@ -640,42 +822,6 @@ function onRapid(x, y, z) {
   rapidMovements(x, y, z);
 }
 
-function safeToRapid(x, y, z) {
-  if (properties.mapE_RestoreRapids) {
-    let zSafe = (z >= properties.mapF_SafeZ);
-
-    // Destination z must be in safe zone.
-    if (zSafe) {
-      let cur = getCurrentPosition();
-      let zConstant = (z == cur.z);
-      let zUp = (z > cur.z);
-      let xyConstant = ((x == cur.x) && (y == cur.y));
-      let curZSafe = (cur.z >= properties.mapF_SafeZ);
-
-      // Restore Rapids only when the target Z is safe and
-      //   Case 1: Z is not changing, but XY are
-      //   Case 2: Z is increasing, but XY constant
-
-      // Z is not changing and we know we are in the safe zone
-      if (zConstant) {
-        return true;
-      }
-
-      // We include moves of Z up as long as xy are constant
-      else if (properties.mapG_AllowRapidZ && zUp && xyConstant) {
-        return true;
-      }
-
-      // We include moves of Z down as long as xy are constant and z always remains safe
-      else if (properties.mapG_AllowRapidZ && (!zUp) && xyConstant && curZSafe) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
 // Feed movements
 function onLinear(x, y, z, feed) {
   // If we are allowing Rapids to be recovered from Linear (cut) moves, which is
@@ -693,7 +839,7 @@ function onLinear(x, y, z, feed) {
     forceSectionToStartWithRapid = false;
     onRapid(x, y, z);
   }
-  else if (safeToRapid(x, y, z)) {
+  else if (isSafeToRapid(x, y, z)) {
     writeComment(eComment.Important, " Safe G1 --> G0");
 
     onRapid(x, y, z);
@@ -1006,7 +1152,7 @@ function writeInformation() {
   writeComment(eComment.Info, " G1->G0 Mapping Properties:");
   writeComment(eComment.Info, "   Map: First G1 -> G0 Rapid = " + properties.mapD_RestoreFirstRapids);
   writeComment(eComment.Info, "   Map: G1s -> G0 Rapids = " + properties.mapE_RestoreRapids);
-  writeComment(eComment.Info, "   Map: Safe Z to Rapid = " + properties.mapF_SafeZ);
+  writeComment(eComment.Info, "   Map: SafeZ Mode = " + eSafeZ.prop[safeZMode].name + " : default = " + safeZHeightDefault);
   writeComment(eComment.Info, "   Map: Allow Rapid Z = " + properties.mapG_AllowRapidZ);
 
   writeComment(eComment.Info, " ");
