@@ -1493,15 +1493,18 @@ function spindleOff() {
 }
 
 function laserOn(power) {
-  var laser_pwm = power / 100 * 255;
 
   // Firmware is Grbl
   if (fw == eFirmware.GRBL) {
+    var laser_pwm = power * 10;
+
     writeBlock(mFormat.format(properties.cutterGrblMode), sFormat.format(laser_pwm));
   }
 
   // Default firmware
   else {
+    var laser_pwm = power / 100 * 255;
+
     switch (properties.cutterMarlinMode) {
       case 106:
         writeBlock(mFormat.format(106), sFormat.format(laser_pwm));
