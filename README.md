@@ -34,6 +34,12 @@ Some design points:
 
 # Properties
 
+> WARNING: If you are using the Fusion 360 for Personal Use license, formally know as the Fusion 360 Hobbyist license, please respect the [limitations of that license](https://knowledge.autodesk.com/support/fusion-360/learn-explore/caas/sfdcarticles/sfdcarticles/Fusion-360-Free-License-Changes.html). To remain compliant with that license set your [Feed: Travel Speed X/Y] and [Feed: Travel Speed Z] no faster then your machine's maximum cut feedrate (see Group 2 Properties).
+>
+>Fusion 360 for Personal Use restricts all moves not to exceed the maximum cut speed. This has been implemented not by reducing the speed of G0s but by changing all G0 (moves) to G1 (cut) commands. The side effect of this was to unintentionally introduce situations where tool dragging and/or work piece collisions occur, general at the start of jobs or after tool changes.
+>
+>You can choose to resolve these issues by enabling the selective mapping of G1s->G0s (see Group 3 Properties). Theses issues are resolved as the post processor implements G0 moves by doing first a move in Z and then a move in X,Y while a G1 cuts travel in X,Y,Z at the same time.
+
 ## Group 1: Job Properties
 Use these properties to control overall aspects of the job.
 
@@ -106,8 +112,8 @@ above [Map: Safe Z to Rapid] are included. Only occurs if [Map: G1s -> G0s] is a
 |---|---|---|---|
 Map: First G1 -> G0 Rapid|Converts the first G1 of a cut to G0 Rapid|**false**| |
 Map: G1s -> G0s|Allow G1 cuts to be converted to Rapid G0 moves when safe and appropriate.|**false**| |
-Map: Safe Z for Rapids|A G1 cut's Z must be >= to this to be mapped to a Rapid G0. Can be a number (used for all sections) or a reference to F360's Height followed by a default if Height is not available.|**Retract:15**| \<number\> or \<F360 Height\>:\<number\>; e.g. 10 or Retract:7 or Feed:5|
-Map: Allow Rapid Z|Include vertical cut if they are safe.|**false**|
+Map: Safe Z for Rapids|A G1 cut's Z must be >= to this to be mapped to a Rapid G0. Can be two formats (1) a number which will be used for all sections, or (2) a reference to F360's Height followed by a default if Height is not available.|**Retract:15** (use the Retract height and if not available 15)| \<number\> or \<F360 Height\>:\<number\>; e.g. 10 or Retract:7 or Feed:5|
+Map: Allow Rapid Z|Include the mapping of vertical cuts if they are safe.|**false**|
 
 ## Group 4: Tool change Properties
 
