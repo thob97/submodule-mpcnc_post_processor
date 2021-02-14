@@ -44,6 +44,30 @@ var eComment = {
     }
 };
 
+var eCoolant = {
+    Off: 0,
+    Flood: 1,
+    Mist: 2,
+    ThroughTool: 3,
+    Air: 4,
+    AirThroughTool: 5,
+    Suction: 6,
+    FloodMist: 7,
+    FloodThroughTool: 8,
+    prop: {
+      0: {name: "Off", value: 0},
+      1: {name: "Flood", value: 1},
+      2: {name: "Mist", value: 2},
+      3: {name: "ThroughTool", value: 3},
+      4: {name: "Air", value: 4},
+      5: {name: "AirThroughTool", value: 5},
+      6: {name: "Suction", value: 6},
+      7: {name: "Flood and Mist", value: 7},
+      8: {name: "Flood and ThroughTool", value: 8},
+    }
+};
+
+
 // user-defined properties
 properties = {
   job0_SelectedFirmware : fw,            // Firmware to use in special cases
@@ -95,8 +119,8 @@ properties = {
   cutterMarlinPin: 4,               // Marlin laser/plasma cutter pin for M42
   cutterGrblMode: 4,                // GRBL mode laser/plasma cutter
   
-  cl0_coolantA_Mode: 0,             // Enable issuing g-codes for control Coolant channel A 
-  cl1_coolantB_Mode: 0,             // Use issuing g-codes for control Coolant channel B 
+  cl0_coolantA_Mode: eCoolant.Off,  // Enable issuing g-codes for control Coolant channel A 
+  cl1_coolantB_Mode: eCoolant.Off,  // Use issuing g-codes for control Coolant channel B 
   cl2_coolantAOn: "M42 P6 S255",    // GCode command to turn on Coolant channel A
   cl3_coolantAOff: "M42 P6 S0",     // Gcode command to turn off Coolant channel A
   cl4_coolantBOn: "M42 P11 S255",   // GCode command to turn on Coolant channel B
@@ -310,30 +334,30 @@ propertyDefinitions = {
     title: "Coolant: A Mode", description: "Enable channel A when tool is set this coolant", group: 8,
     type: "integer", default_mm: 0, default_in: 0,
     values: [
-      { title: "off", id: 0 },
-      { title: "flood", id: 1 },
-      { title: "mist", id: 2 },
-      { title: "throughTool", id: 3 },
-      { title: "air", id: 4 },
-      { title: "airThroughTool", id: 5 },
-      { title: "suction", id: 6 },
-      { title: "floodMist", id: 7 },
-      { title: "floodThroughTool", id: 8 }
+      { title: eCoolant.prop[eCoolant.Off].name, id: eCoolant.Off },
+      { title: eCoolant.prop[eCoolant.Flood].name, id: eCoolant.Flood },
+      { title: eCoolant.prop[eCoolant.Mist].name, id: eCoolant.Mist },
+      { title: eCoolant.prop[eCoolant.ThroughTool].name, id: eCoolant.ThroughTool },
+      { title: eCoolant.prop[eCoolant.Air].name, id: eCoolant.Air },
+      { title: eCoolant.prop[eCoolant.AirThroughTool].name, id: eCoolant.AirThroughTool },
+      { title: eCoolant.prop[eCoolant.Suction].name, id: eCoolant.Suction },
+      { title: eCoolant.prop[eCoolant.FloodMist].name, id: eCoolant.FloodMist },
+      { title: eCoolant.prop[eCoolant.FloodThroughTool].name, id: eCoolant.FloodThroughTool }
     ]
   },
   cl1_coolantB_Mode: {
     title: "Coolant: B Mode", description: "Enable channel B when tool is set this coolant", group: 8,
     type: "integer", default_mm: 0, default_in: 0,
     values: [
-      { title: "off", id: 0 },
-      { title: "flood", id: 1 },
-      { title: "mist", id: 2 },
-      { title: "throughTool", id: 3 },
-      { title: "air", id: 4 },
-      { title: "airThroughTool", id: 5 },
-      { title: "suction", id: 6 },
-      { title: "floodMist", id: 7 },
-      { title: "floodThroughTool", id: 8 }
+      { title: eCoolant.prop[eCoolant.Off].name, id: eCoolant.Off },
+      { title: eCoolant.prop[eCoolant.Flood].name, id: eCoolant.Flood },
+      { title: eCoolant.prop[eCoolant.Mist].name, id: eCoolant.Mist },
+      { title: eCoolant.prop[eCoolant.ThroughTool].name, id: eCoolant.ThroughTool },
+      { title: eCoolant.prop[eCoolant.Air].name, id: eCoolant.Air },
+      { title: eCoolant.prop[eCoolant.AirThroughTool].name, id: eCoolant.AirThroughTool },
+      { title: eCoolant.prop[eCoolant.Suction].name, id: eCoolant.Suction },
+      { title: eCoolant.prop[eCoolant.FloodMist].name, id: eCoolant.FloodMist },
+      { title: eCoolant.prop[eCoolant.FloodThroughTool].name, id: eCoolant.FloodThroughTool }
     ]
   },
   cl2_coolantAOn: {
@@ -630,7 +654,7 @@ function isSafeToRapid(x, y, z) {
 }
 
 //---------------- Coolant ----------------
-// Coolant
+
 function CoolantA(on) {
   writeBlock(on ? properties.cl2_coolantAOn : properties.cl3_coolantAOff);
 }
@@ -638,6 +662,64 @@ function CoolantA(on) {
 function CoolantB(on) {
   writeBlock(on ? properties.cl4_coolantBOn : properties.cl5_coolantBOff);
 }
+
+// Manage two channels of coolant by tracking which coolant is being using for
+// a channel (0 = disabled). SetCoolant called with desired coolant to use or 0 to disable
+
+var curCoolant = eCoolant.Off;    // The coolant requested by the tool
+var coolantChannelA = 0;          // The coolant running in ChannelA
+var coolantChannelB = 0;          // The coolant running in ChannelB
+
+function setCoolant(coolant) {
+  // If the coolant for this tool is the same as the current coolant then there is nothing to do
+  if (curCoolant == coolant) {
+    return;
+  }
+
+  // We are changing coolant, so disable any active coolant channels
+  // before we switch to the other coolant
+  if (coolantChannelA != eCoolant.Off) {
+    writeComment((coolant == eCoolant.Off) ? eComment.Important: eComment.Info, " >>> Coolant Channel A: " + eCoolant.prop[eCoolant.Off].name);
+    coolantChannelA = eCoolant.Off;
+    CoolantA(false);
+  }
+
+  if (coolantChannelB != eCoolant.Off) {
+    writeComment((coolant == eCoolant.Off) ? eComment.Important: eComment.Info, " >>> Coolant Channel B: " + eCoolant.prop[eCoolant.Off].name);
+    coolantChannelB = eCoolant.Off;
+    CoolantB(false);
+  }
+
+  // At this point we know that all coolant is off so make that the current coolant
+  curCoolant = eCoolant.Off;
+
+  // As long as we are not disabling coolant (coolant = 0), then check if either coolant channel
+  // matches the coolant requested. If neither do then issue an warning
+
+  var warn = true;
+
+  if (coolant != eCoolant.Off) {
+    if (properties.cl0_coolantA_Mode == coolant) {
+      writeComment(eComment.Important, " >>> Coolant Channel A: " + eCoolant.prop[coolant].name);
+      coolantChannelA =  coolant;
+      warn = false;
+      CoolantA(true);
+    }
+
+    if (properties.cl1_coolantB_Mode == coolant) {
+      writeComment(eComment.Important, " >>> Coolant Channel B: " + eCoolant.prop[coolant].name);
+      coolantChannelB =  coolant;
+      warn = false;
+      CoolantB(true);
+    }
+
+    if (warn) {
+      writeComment(eComment.Important, " >>> WARNING: No matching Coolant channel : " + ((coolant <= eCoolant.FloodThroughTool) ? eCoolant.prop[coolant].name : "unknown") + " requested");
+    }
+  }
+}
+
+//---------------- on Entry Points ----------------
 
 // Called in every new gcode file
 function onOpen() {
@@ -1334,56 +1416,6 @@ function loadFile(_file) {
   } else {
     writeComment(eComment.Important, " Can't open file " + folder + _file);
     error("Can't open file " + folder + _file);
-  }
-}
-
-// Manage two channels of coolant by tracking which coolant is being using for
-// a channel (0 = disabled). SetCoolant called with desired coolant to use or 0 to disable
-
-var coolantChannelA = 0;
-var coolantChannelB = 0;
-
-function setCoolant(coolant) {
-  // As long as we are not disabling coolant (= 0), then if either of the coolant
-  // channels are already operating in the mode requested then there is
-  // nothing to do
-  if ((coolant != 0) &&
-      ((coolantChannelA == coolant) || (coolantChannelB == coolant))) {
-    return;
-  }
-
-  // F360 allows only 1 coolant to be defined on an operation. If a coolant channel
-  // is active then disable it before we switch to the other
-  if (coolantChannelA != 0) {
-    writeComment((coolant == 0) ? eComment.Important: eComment.Info, " >>> Coolant Channel A: off");
-    coolantChannelA = 0;
-    CoolantA(false);
-  }
-
-  if (coolantChannelB != 0) {
-    writeComment((coolant == 0) ? eComment.Important: eComment.Info, " >>> Coolant Channel B: off");
-    coolantChannelB = 0;
-    CoolantB(false);
-  }
-
-  // As long as we are not disabling coolant (coolant = 0), then check the coolant channels
-  // and enable the one that provides the coolant requested. If neither do then
-  // issue an warning
-  if (coolant != 0) {
-    if (properties.cl0_coolantA_Mode == coolant) {
-      writeComment(eComment.Important, " >>> Coolant Channel A: " + propertyDefinitions.cl0_coolantA_Mode.values[coolant].title);
-      coolantChannelA =  coolant;
-      CoolantA(true);
-    }
-    else if (properties.cl1_coolantB_Mode == coolant) {
-      writeComment(eComment.Important, " >>> Coolant Channel B: " + propertyDefinitions.cl1_coolantB_Mode.values[coolant].title);
-      coolantChannelB =  coolant;
-      CoolantB(true);
-    }
-    else {
-      writeComment(eComment.Important, " >>> WARNING: No Coolant Channels Enabled: " + ((coolant < propertyDefinitions.cl0_coolantA_Mode.values.length) ?
-                                                                                                  propertyDefinitions.cl0_coolantA_Mode.values[coolant].title : "unknown") + " requested");
-    }
   }
 }
 
