@@ -6,7 +6,7 @@ This is modified fork of https://github.com/guffy1234/mpcnc_posts_processor that
 
 CAM posts processor for use with Fusion 360 and [MPCNC](https://www.v1engineering.com).
 
-Supported firmwares:
+Supported firmware:
 - Marlin 2.0
 - Repetier firmware 1.0.3 (not tested. gcode is same as for Marlin)
 - GRBL 1.1
@@ -120,9 +120,9 @@ Map: Allow Rapid Z|Include the mapping of vertical cuts if they are safe.|**fals
 |Title|Description|Default|
 |---|---|---|
 Tool Change: Enable|Include tool change code when tool changes (bultin tool change requires LCD display|**false**|
-Tool Change: X|X position for builtin tool change|**0**|
-Tool Change: Y|Y position for builtin tool change|**0**|
-Tool Change: Z|Z position for builtin tool change|**40**|
+Tool Change: X|X position for built-in tool change|**0**|
+Tool Change: Y|Y position for built-in tool change|**0**|
+Tool Change: Z|Z position for built-in tool change|**40**|
 Tool Change: Disable Z stepper|Disable Z stepper after reaching tool change location|**false**|
 
 ## Group 5: Z Probe Properties
@@ -138,6 +138,12 @@ Probe: G38 speed|G38 Probing's speed|**30**|
 
 ## Group 6: Laser/Plasma Properties
 
+Fusion 360 defines four levels of Through cut, currently these all map to power level "On - Through".
+
+The firmware selected in the parameter [Job: CNC Firmware] determines if the Grbl or Marlin/Reprap laser parameters are used. 
+
+Fusion 360 does not use a coolant when using its jet tools (waterjet/laser/plasma). When using a laser it may be desirable to use air or some other device you have connected to the coolant channels. The [Laser: Coolant] can be used to force a coolant to be used for the laser operations (see coolant parameter on details for configuring the coolant channels).
+
 |Title|Description|Default|Values|
 |---|---|---|---|
 Laser: On - Vaporize|Persent of power to turn on the laser/plasma cutter in vaporize mode|**100**||
@@ -146,6 +152,7 @@ Laser: On - Etch|Persent of power to turn on the laser/plasma cutter in etch mod
 Laser: Marlin/Reprap Mode|Marlin/Reprap mode of the laser/plasma cutter|**Fan - M106 S{PWM}/M107**|"Fan - M106 S{PWM}/M107", "Spindle - M3 O{PWM}/M5", "Pin - M42 P{pin} S{PWM}"|
 Laser: Marlin M42 Pin|Marlin custom pin number for the laser/plasma cutter|**4**||
 Laser: GRBL Mode|GRBL mode of the laser/plasma cutter|**M4 S{PWM}/M5 dynamic power**|"M4 S{PWM}/M5 dynamic power", "M3 S{PWM}/M5 static power"|
+Laser: Coolant|Force a coolant to be used|**Off**|off, flood, mist, throughTool, air, airThroughTool, suction, floodMist, floodThroughTool|
 
 ## Group 7: Override Behaviour by External File Properties
 
@@ -158,12 +165,14 @@ Extern: Probe File|File with custom Gcode for tool probe (in nc folder)||
 
 ## Group 7: Coolant Control Pin Properties
 
-Coolant has two channels, A and B. Each channel can be configured to be off or set to 1 of the 8 coolant modes that Fusion 360 allows on operation. If a tool's collant requirements match a channel's setting then that channel is enabled, Channel A has priority. Setting both channels' mode to off disables coolant but will produce a warning if a tool askes
-for coolant. 
+Coolant has two channels, A and B. Each channel can be configured to be off or set to 1 of the 8 coolant modes that Fusion 360 allows on operation. If a tool's collant requirements match a channel's setting then that channel is enabled. A warning is generated if a tool askes for coolant and there is not a channel that matches. 
 
-If a channel becomes Enabled by matching the coolant requested by the tool then the channel is physically enabled by the post processor by including the text associated with the corresponding property [Coolant \<A or B\> Enable]. Note, Marlin and Grbl values are included as options, you must select based on your actual configuration. The firmware selected in property [Job: CNC Firmware] will not override your selection.
+If a channel matches the coolant requested the Channel becomes enabled. When a channel is enabled the post processor will include the text associated with the corresponding property [Coolant \<A or B\> Enable]. Note, Marlin and Grbl values are included as options, you must select based on your actual configuration. The firmware selected in property [Job: CNC Firmware] will not override your selection.
 
 If a channel needs to be Disabled because it no longer matchs the coolant requested then the channel is physically disabled by the post processor by including the text associated with the corresponding property [Coolant \<A or B\> Disable]. Note, Marlin and Grbl values are included as options, you must select based on your actual configuration. The firmware selected in the propery [Job: CNC Firmware] will not override your selection.
+
+For coolant requests, like "Flood and Mist" or "Flood and Through Tool" you may want to enable one or
+two channels dependent on if your hardware uses one connections to enable both or a seperate connection for each. Two channels may be enabled by placing the same coolant code in both. For example, setting both channels to "Flood and Mist" will result in enabling both channel A and channel B when the tool requests "Flood and Mist". Correspondingly channels A's enable value will be output (to enable flooding) and channel B's enable value will be output (to enable Mist).
 
 |Title|Description|Default|Values|
 |---|---|---|---|
@@ -183,13 +192,13 @@ Duet: Laser mode|GCode command to setup Duet3d laser mode|**M452 P2 I0 R255 F200
 
 # Sample of issued code blocks
 
-## Gcode of milling with manually control spindel
+## Gcode of milling with manually control spindle
 
 ```G-code
 To be updated
 ```
 
-# Resorces
+# Resources
 
 [Marlin G-codes](http://marlinfw.org/meta/gcode/)
 

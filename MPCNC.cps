@@ -107,18 +107,19 @@ properties = {
   probe5_G38Target: -10,               // probing up to pos 
   probe6_G38Speed: 30,                 // probing with speed 
 
-  gcodeStartFile: "",               // File with custom Gcode for header/start (in nc folder)
-  gcodeStopFile: "",                // File with custom Gcode for footer/end (in nc folder)
-  gcodeToolFile: "",                // File with custom Gcode for tool change (in nc folder)
-  gcodeProbeFile: "",               // File with custom Gcode for tool probe (in nc folder)
+  gcodeStartFile: "",                  // File with custom Gcode for header/start (in nc folder)
+  gcodeStopFile: "",                   // File with custom Gcode for footer/end (in nc folder)
+  gcodeToolFile: "",                   // File with custom Gcode for tool change (in nc folder)
+  gcodeProbeFile: "",                  // File with custom Gcode for tool probe (in nc folder)
 
-  cutterOnVaporize: 100,            // Persent of power to turn on the laser/plasma cutter in vaporize mode
-  cutterOnThrough: 80,              // Persent of power to turn on the laser/plasma cutter in through mode
-  cutterOnEtch: 40,                 // Persent of power to turn on the laser/plasma cutter in etch mode
-  cutterMarlinMode: 106,            // Marlin mode laser/plasma cutter
-  cutterMarlinPin: 4,               // Marlin laser/plasma cutter pin for M42
-  cutterGrblMode: 4,                // GRBL mode laser/plasma cutter
-  
+  cutter1_OnVaporize: 100,             // Percentage of power to turn on the laser/plasma cutter in vaporize mode
+  cutter2_OnThrough: 80,               // Percentage of power to turn on the laser/plasma cutter in through mode
+  cutter3_OnEtch: 40,                  // Percentage of power to turn on the laser/plasma cutter in etch mode
+  cutter4_MarlinMode: 106,             // Marlin mode laser/plasma cutter
+  cutter5_MarlinPin: 4,                // Marlin laser/plasma cutter pin for M42
+  cutter6_GrblMode: 4,                 // GRBL mode laser/plasma cutter
+  cutter7_Coolant: eCoolant.Off,       // Use this coolant. F360 doesn't define a coolant for cutters
+
   cl0_coolantA_Mode: eCoolant.Off,  // Enable issuing g-codes for control Coolant channel A 
   cl1_coolantB_Mode: eCoolant.Off,  // Use issuing g-codes for control Coolant channel B 
   cl2_coolantAOn: "M42 P6 S255",    // GCode command to turn on Coolant channel A
@@ -278,19 +279,19 @@ propertyDefinitions = {
     type: "spatial", default_mm: 30, default_in: 1.2
   },
 
-  cutterOnVaporize: {
+  cutter1_OnVaporize: {
     title: "Laser: On - Vaporize", description: "Persent of power to turn on the laser/plasma cutter in vaporize mode", group: 6,
     type: "number", default_mm: 100, default_in: 100
   },
-  cutterOnThrough: {
+  cutter2_OnThrough: {
     title: "Laser: On - Through", description: "Persent of power to turn on the laser/plasma cutter in through mode", group: 6,
     type: "number", default_mm: 80, default_in: 80
   },
-  cutterOnEtch: {
+  cutter3_OnEtch: {
     title: "Laser: On - Etch", description: "Persent of power to on the laser/plasma cutter in etch mode", group: 6,
     type: "number", default_mm: 40, default_in: 40
   },
-  cutterMarlinMode: {
+  cutter4_MarlinMode: {
     title: "Laser: Marlin/Reprap Mode", description: "Marlin/Reprap mode of the laser/plasma cutter", group: 6,
     type: "integer", default_mm: 106, default_in: 106,
     values: [
@@ -299,16 +300,31 @@ propertyDefinitions = {
       { title: "Pin - M42 P{pin} S{PWM}", id: 42 },
     ]
   },
-  cutterMarlinPin: {
+  cutter5_MarlinPin: {
     title: "Laser: Marlin M42 Pin", description: "Marlin custom pin number for the laser/plasma cutter", group: 6,
     type: "integer", default_mm: 4, default_in: 4
   },
-  cutterGrblMode: {
+  cutter6_GrblMode: {
     title: "Laser: GRBL Mode", description: "GRBL mode of the laser/plasma cutter", group: 6,
     type: "integer", default_mm: 4, default_in: 4,
     values: [
         { title: "M4 S{PWM}/M5 dynamic power", id: 4 },
         { title: "M3 S{PWM}/M5 static power", id: 3 },
+    ]
+  },
+  cutter7_Coolant: {
+    title: "Laser: Coolant", description: "Force a coolant to be used", group: 6,
+    type: "integer", default_mm: eCoolant.Off, default_in: eCoolant.Off,
+    values: [
+      { title: eCoolant.prop[eCoolant.Off].name, id: eCoolant.Off },
+      { title: eCoolant.prop[eCoolant.Flood].name, id: eCoolant.Flood },
+      { title: eCoolant.prop[eCoolant.Mist].name, id: eCoolant.Mist },
+      { title: eCoolant.prop[eCoolant.ThroughTool].name, id: eCoolant.ThroughTool },
+      { title: eCoolant.prop[eCoolant.Air].name, id: eCoolant.Air },
+      { title: eCoolant.prop[eCoolant.AirThroughTool].name, id: eCoolant.AirThroughTool },
+      { title: eCoolant.prop[eCoolant.Suction].name, id: eCoolant.Suction },
+      { title: eCoolant.prop[eCoolant.FloodMist].name, id: eCoolant.FloodMist },
+      { title: eCoolant.prop[eCoolant.FloodThroughTool].name, id: eCoolant.FloodThroughTool }
     ]
   },
 
@@ -666,11 +682,13 @@ function CoolantB(on) {
 // Manage two channels of coolant by tracking which coolant is being using for
 // a channel (0 = disabled). SetCoolant called with desired coolant to use or 0 to disable
 
-var curCoolant = eCoolant.Off;    // The coolant requested by the tool
-var coolantChannelA = 0;          // The coolant running in ChannelA
-var coolantChannelB = 0;          // The coolant running in ChannelB
+var curCoolant = eCoolant.Off;        // The coolant requested by the tool
+var coolantChannelA = eCoolant.Off;   // The coolant running in ChannelA
+var coolantChannelB = eCoolant.Off;   // The coolant running in ChannelB
 
 function setCoolant(coolant) {
+  writeComment(eComment.Debug, " ---- Coolant: " + coolant  + " cur: " + curCoolant + " A: " + coolantChannelA + " B: " + coolantChannelB);
+
   // If the coolant for this tool is the same as the current coolant then there is nothing to do
   if (curCoolant == coolant) {
     return;
@@ -702,6 +720,7 @@ function setCoolant(coolant) {
     if (properties.cl0_coolantA_Mode == coolant) {
       writeComment(eComment.Important, " >>> Coolant Channel A: " + eCoolant.prop[coolant].name);
       coolantChannelA =  coolant;
+      curCoolant = coolant;
       warn = false;
       CoolantA(true);
     }
@@ -709,12 +728,69 @@ function setCoolant(coolant) {
     if (properties.cl1_coolantB_Mode == coolant) {
       writeComment(eComment.Important, " >>> Coolant Channel B: " + eCoolant.prop[coolant].name);
       coolantChannelB =  coolant;
+      curCoolant = coolant;
       warn = false;
       CoolantB(true);
     }
 
     if (warn) {
       writeComment(eComment.Important, " >>> WARNING: No matching Coolant channel : " + ((coolant <= eCoolant.FloodThroughTool) ? eCoolant.prop[coolant].name : "unknown") + " requested");
+    }
+  }
+}
+
+//---------------- Cutters - Waterjet/Laser/Plasma ----------------
+
+var cutterOnCurrentPower;
+
+function laserOn(power) {
+  // Firmware is Grbl
+  if (fw == eFirmware.GRBL) {
+    var laser_pwm = power * 10;
+
+    writeBlock(mFormat.format(properties.cutter6_GrblMode), sFormat.format(laser_pwm));
+  }
+
+  // Default firmware
+  else {
+    var laser_pwm = power / 100 * 255;
+
+    switch (properties.cutter4_MarlinMode) {
+      case 106:
+        writeBlock(mFormat.format(106), sFormat.format(laser_pwm));
+        break;
+      case 3:
+        if (fw == eFirmware.REPRAP) {
+          writeBlock(mFormat.format(3), sFormat.format(laser_pwm));
+        } else {
+          writeBlock(mFormat.format(3), oFormat.format(laser_pwm));
+        }
+        break;
+      case 42:
+        writeBlock(mFormat.format(42), pFormat.format(properties.cutter5_MarlinPin), sFormat.format(laser_pwm));
+        break;
+    }
+  }
+}
+
+function laserOff() {
+  // Firmware is Grbl
+  if (fw == eFirmware.GRBL) {
+    writeBlock(mFormat.format(5));
+  }
+
+  // Default
+  else {
+    switch (properties.cutter4_MarlinMode) {
+      case 106:
+        writeBlock(mFormat.format(107));
+        break;
+      case 3:
+        writeBlock(mFormat.format(5));
+        break;
+      case 42:
+        writeBlock(mFormat.format(42), pFormat.format(properties.cutter5_MarlinPin), sFormat.format(0));
+        break;
     }
   }
 }
@@ -780,7 +856,6 @@ function onClose() {
   }
 }
 
-var cutterOnCurrentPower;
 var forceSectionToStartWithRapid = false;
 
 function onSection() {
@@ -800,6 +875,13 @@ function onSection() {
   }
 
   writeComment(eComment.Important, " *** SECTION begin ***");
+
+  // Print min/max boundaries for each section
+  vectorX = new Vector(1, 0, 0);
+  vectorY = new Vector(0, 1, 0);
+  writeComment(eComment.Info, "   X Min: " + xyzFormat.format(currentSection.getGlobalRange(vectorX).getMinimum()) + " - X Max: " + xyzFormat.format(currentSection.getGlobalRange(vectorX).getMaximum()));
+  writeComment(eComment.Info, "   Y Min: " + xyzFormat.format(currentSection.getGlobalRange(vectorY).getMinimum()) + " - Y Max: " + xyzFormat.format(currentSection.getGlobalRange(vectorY).getMaximum()));
+  writeComment(eComment.Info, "   Z Min: " + xyzFormat.format(currentSection.getGlobalZRange().getMinimum()) + " - Z Max: " + xyzFormat.format(currentSection.getGlobalZRange().getMaximum()));
 
   // Determine the Safe Z Height to map G1s to G0s
   safeZforSection(currentSection);
@@ -825,30 +907,37 @@ function onSection() {
     writeComment(eComment.Info, " " + sectionComment + " - Milling - Tool: " + tool.number + " - " + tool.comment + " " + getToolTypeName(tool.type));
   }
 
-  if (currentSection.type == TYPE_JET) {
+  else if (currentSection.type == TYPE_JET) {
+    var jetModeStr;
+    var warn = false;
+
     // Cutter mode used for different cutting power in PWM laser
     switch (currentSection.jetMode) {
       case JET_MODE_THROUGH:
-        cutterOnCurrentPower = properties.cutterOnThrough;
+        cutterOnCurrentPower = properties.cutter2_OnThrough;
+        jetModeStr = "Through"
         break;
       case JET_MODE_ETCHING:
-        cutterOnCurrentPower = properties.cutterOnEtch;
+        cutterOnCurrentPower = properties.cutter3_OnEtch;
+        jetModeStr = "Etching"
         break;
       case JET_MODE_VAPORIZE:
-        cutterOnCurrentPower = properties.cutterOnVaporize;
+        jetModeStr = "Vaporize"
+        cutterOnCurrentPower = properties.cutter1_OnVaporize;
         break;
       default:
-        error("Cutting mode is not supported.");
+        jetModeStr = "*** Unknown ***"
+        warn = true;
     }
-    writeComment(eComment.Info, " " + sectionComment + " - Laser/Plasma - Cutting mode: " + getParameter("operation:cuttingMode"));
-  }
 
-  // Print min/max boundaries for each section
-  vectorX = new Vector(1, 0, 0);
-  vectorY = new Vector(0, 1, 0);
-  writeComment(eComment.Info, "   X Min: " + xyzFormat.format(currentSection.getGlobalRange(vectorX).getMinimum()) + " - X Max: " + xyzFormat.format(currentSection.getGlobalRange(vectorX).getMaximum()));
-  writeComment(eComment.Info, "   Y Min: " + xyzFormat.format(currentSection.getGlobalRange(vectorY).getMinimum()) + " - Y Max: " + xyzFormat.format(currentSection.getGlobalRange(vectorY).getMaximum()));
-  writeComment(eComment.Info, "   Z Min: " + xyzFormat.format(currentSection.getGlobalZRange().getMinimum()) + " - Z Max: " + xyzFormat.format(currentSection.getGlobalZRange().getMaximum()));
+    if (warn) {
+      writeComment(eComment.Info, " " + sectionComment + ", Laser/Plasma Cutting mode: " + getParameter("operation:cuttingMode") + ", jetMode: " + jetModeStr);
+      writeComment(eComment.Important, "Selected cutting mode " + currentSection.jetMode + " not mapped to power level");
+    }
+    else {
+      writeComment(eComment.Info, " " + sectionComment + ", Laser/Plasma Cutting mode: " + getParameter("operation:cuttingMode") + ", jetMode: " + jetModeStr + ", power: " + cutterOnCurrentPower);
+    }
+  }
 
   // Adjust the mode
   if (fw == eFirmware.REPRAP) {
@@ -871,13 +960,6 @@ function onSection() {
 
   // Display section name in LCD
   display_text(" " + sectionComment);
-}
-
-function resetAll() {
-  xOutput.reset();
-  yOutput.reset();
-  zOutput.reset();
-  fOutput.reset();
 }
 
 // Called in every section end
@@ -1106,34 +1188,43 @@ function onSpindleSpeed(spindleSpeed) {
 }
 
 function onCommand(command) {
-  if (properties.commentActivities) {
-    var stringId = getCommandStringId(command);
-    writeComment(eComment.Info, " " + stringId);
-  }
+  writeComment(eComment.Info, " " + getCommandStringId(command));
+  
   switch (command) {
     case COMMAND_START_SPINDLE:
       onCommand(tool.clockwise ? COMMAND_SPINDLE_CLOCKWISE : COMMAND_SPINDLE_COUNTERCLOCKWISE);
       return;
     case COMMAND_SPINDLE_CLOCKWISE:
-      if (tool.jetTool)
-        return;
-      setSpindeSpeed(spindleSpeed, true);
+      if (!tool.isJetTool()) {
+        setSpindeSpeed(spindleSpeed, true);
+      }
       return;
     case COMMAND_SPINDLE_COUNTERCLOCKWISE:
-      if (tool.jetTool)
-        return;
-      setSpindeSpeed(spindleSpeed, false);
+      if (!tool.isJetTool()) {
+        setSpindeSpeed(spindleSpeed, false);
+      }
       return;
     case COMMAND_STOP_SPINDLE:
-      if (tool.jetTool)
-        return;
-      setSpindeSpeed(0, true);
+      if (!tool.isJetTool()) {
+        setSpindeSpeed(0, true);
+      }
       return;
     case COMMAND_COOLANT_ON:
-      setCoolant(tool.coolant);
+      if (tool.isJetTool()) {
+        // F360 doesn't support coolant with jet tools (water jet/laser/plasma) but we've
+        // added a parameter to force a coolant to be selected for jet tool operations. Note: tool.coolant
+        // is not used as F360 doesn't define it.
+
+        if (properties.cutter7_Coolant != eCoolant.Off) {
+          setCoolant(properties.cutter7_Coolant);
+        }
+      }
+      else {
+        setCoolant(tool.coolant);
+      }
       return;
     case COMMAND_COOLANT_OFF:
-      setCoolant(0);  //COOLANT_DISABLED
+      setCoolant(eCoolant.Off);  //COOLANT_DISABLED
       return;
     case COMMAND_LOCK_MULTI_AXIS:
       return;
@@ -1142,14 +1233,21 @@ function onCommand(command) {
     case COMMAND_BREAK_CONTROL:
       return;
     case COMMAND_TOOL_MEASURE:
-      if (tool.jetTool)
-        return;
-      probeTool();
+      if (!tool.isJetTool()) {
+        probeTool();
+      }
       return;
     case COMMAND_STOP:
       writeBlock(mFormat.format(0));
       return;
   }
+}
+
+function resetAll() {
+  xOutput.reset();
+  yOutput.reset();
+  zOutput.reset();
+  fOutput.reset();
 }
 
 function writeInformation() {
@@ -1465,7 +1563,7 @@ function Start() {
       writeBlock(gFormat.format(92), xFormat.format(0), yFormat.format(0), zFormat.format(0)); // Set origin to initial position
     }
 
-    if (properties.probe1_OnStart && tool.number != 0 && !tool.jetTool) {
+    if (properties.probe1_OnStart && tool.number != 0 && !tool.isJetTool()) {
       onCommand(COMMAND_TOOL_MEASURE);
     }
   }
@@ -1521,59 +1619,6 @@ function spindleOff() {
       writeBlock(mFormat.format(5));
     }
     this.spindleEnabled = false;
-  }
-}
-
-function laserOn(power) {
-
-  // Firmware is Grbl
-  if (fw == eFirmware.GRBL) {
-    var laser_pwm = power * 10;
-
-    writeBlock(mFormat.format(properties.cutterGrblMode), sFormat.format(laser_pwm));
-  }
-
-  // Default firmware
-  else {
-    var laser_pwm = power / 100 * 255;
-
-    switch (properties.cutterMarlinMode) {
-      case 106:
-        writeBlock(mFormat.format(106), sFormat.format(laser_pwm));
-        break;
-      case 3:
-        if (fw == eFirmware.REPRAP) {
-          writeBlock(mFormat.format(3), sFormat.format(laser_pwm));
-        } else {
-          writeBlock(mFormat.format(3), oFormat.format(laser_pwm));
-        }
-        break;
-      case 42:
-        writeBlock(mFormat.format(42), pFormat.format(properties.cutterMarlinPin), sFormat.format(laser_pwm));
-        break;
-    }
-  }
-}
-
-function laserOff() {
-  // Firmware is Grbl
-  if (fw == eFirmware.GRBL) {
-    writeBlock(mFormat.format(5));
-  }
-
-  // Default
-  else {
-    switch (properties.cutterMarlinMode) {
-      case 106:
-        writeBlock(mFormat.format(107));
-        break;
-      case 3:
-        writeBlock(mFormat.format(5));
-        break;
-      case 42:
-        writeBlock(mFormat.format(42), pFormat.format(properties.cutterMarlinPin), sFormat.format(0));
-        break;
-    }
   }
 }
 
