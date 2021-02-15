@@ -631,11 +631,21 @@ function safeZforSection(_section)
 }
 
 
+Number.prototype.round = function(places) {
+  return +(Math.round(this + "e+" + places)  + "e-" + places);
+}
+
 // Returns true if the rules to convert G1s to G0s are satisfied
 function isSafeToRapid(x, y, z) {
   if (properties.mapE_RestoreRapids) {
-    //let zSafe = (z >= properties.mapF_SafeZ);
-    let zSafe = (z >= safeZHeight);
+
+    // Calculat a z to 3 decimal places for zSafe comparison, every where else use z to avoid mixing rounded with unrounded
+    var z_round = z.round(3);
+    writeComment(eComment.Debug, "isSafeToRapid z: " + z + " z_round: " + z_round);
+
+    let zSafe = (z_round >= safeZHeight);
+
+    writeComment(eComment.Debug, "isSafeToRapid zSafe: " + zSafe + " z_round: " + z_round + " safeZHeight: " + safeZHeight);
 
     // Destination z must be in safe zone.
     if (zSafe) {
@@ -644,6 +654,7 @@ function isSafeToRapid(x, y, z) {
       let zUp = (z > cur.z);
       let xyConstant = ((x == cur.x) && (y == cur.y));
       let curZSafe = (cur.z >= safeZHeight);
+      writeComment(eComment.Debug, "isSafeToRapid curZSafe: " + curZSafe + " cur.z: " + cur.z);
 
       // Restore Rapids only when the target Z is safe and
       //   Case 1: Z is not changing, but XY are
