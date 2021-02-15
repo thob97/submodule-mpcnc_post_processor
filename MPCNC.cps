@@ -643,7 +643,7 @@ function isSafeToRapid(x, y, z) {
       let zConstant = (z == cur.z);
       let zUp = (z > cur.z);
       let xyConstant = ((x == cur.x) && (y == cur.y));
-      let curZSafe = (cur.z >= properties.mapF_SafeZ);
+      let curZSafe = (cur.z >= safeZHeight);
 
       // Restore Rapids only when the target Z is safe and
       //   Case 1: Z is not changing, but XY are
