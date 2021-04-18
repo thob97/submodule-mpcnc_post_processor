@@ -174,14 +174,20 @@ If a channel needs to be Disabled because it no longer matchs the coolant reques
 For coolant requests, like "Flood and Mist" or "Flood and Through Tool" you may want to enable one or
 two channels dependent on if your hardware uses one connections to enable both or a seperate connection for each. Two channels may be enabled by placing the same coolant code in both. For example, setting both channels to "Flood and Mist" will result in enabling both channel A and channel B when the tool requests "Flood and Mist". Correspondingly channels A's enable value will be output (to enable flooding) and channel B's enable value will be output (to enable Mist).
 
+Four custom coolant text strings can be defined for both Channel A and B's on and off values. Use these if the predefine values do not match your hardware. To enable, set the corresponding coolant channel to 'Use custom'.
+
 |Title|Description|Default|Values|
 |---|---|---|---|
 Coolant: A Mode|Enable channel A when tool is set this coolant|**off**|off, flood, mist, throughTool, air, airThroughTool, suction, floodMist, floodThroughTool|
 Coolant: B Mode|Enable channel B when tool is set this coolant|**off**|off, flood, mist, throughTool, air, airThroughTool, suction, floodMist, floodThroughTool|
-Coolant: A Enable|GCode to turn On coolant channel A|**Mrln: M42 P6 S255**|"Mrln: M42 P6 S255", , Mrln: M42 P11 S255", "Grbl: M7 (mist)", "Grbl: M8 (flood)"|
-Coolant: A Disable Off command|GCode to turn Off coolant channel A|**Mrln: M42 P6 S0**|"Mrln: M42 P6 S0", "Mrln: M42 P11 S0", "Grbl: M9 (off)"|
-Coolant: B Enable|GCode to turn On coolant channel B|**Mrln: M42 P11 S255**|"Mrln: M42 P11 S255", "Mrln: M42 P6 S255", "Grbl: M7 (mist)", "Grbl: M8 (flood)"|
-Coolant: B Disable Off command|GCode to turn Off coolant channel B|**Mrln: M42 P11 S0**|"Mrln: M42 P11 S0", "Mrln: M42 P6 S0", "Grbl: M9 (off)"|
+Coolant: A Enable|GCode to turn On coolant channel A|**Mrln: M42 P6 S255**|"Mrln: M42 P6 S255", , Mrln: M42 P11 S255", "Grbl: M7 (mist)", "Grbl: M8 (flood)", "Use custom"|
+Coolant: A Disable|GCode to turn Off coolant channel A|**Mrln: M42 P6 S0**|"Mrln: M42 P6 S0", "Mrln: M42 P11 S0", "Grbl: M9 (off)", "Use custom"|
+Coolant: B Enable|GCode to turn On coolant channel B|**Mrln: M42 P11 S255**|"Mrln: M42 P11 S255", "Mrln: M42 P6 S255", "Grbl: M7 (mist)", "Grbl: M8 (flood)", "Use custom"|
+Coolant: B Disable|GCode to turn Off coolant channel B|**Mrln: M42 P11 S0**|"Mrln: M42 P11 S0", "Mrln: M42 P6 S0", "Grbl: M9 (off)", "Use custom"|
+Coolant: Custom A Enable|Custom GCode to turn On coolant channel A|empty| |
+Coolant: Custom A Disable|Custom GCode to turn Off coolant channel A|empty| |
+Coolant: Custom B Enable|Custom GCode to turn On coolant channel B|empty| |
+Coolant: Custom B Disable|Custom GCode to turn Off coolant channel B|empty| |
 
 ## Group 9: Duet Properties
 
