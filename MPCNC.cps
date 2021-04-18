@@ -1745,7 +1745,7 @@ function toolChange() {
     flushMotions();
 
     // Go to tool change position
-    onRapid(propertyMmToUnit(properties.toolChange1_X), propertyMmToUnit(properties.toolChange2_Y), propertyMmToUnit(properties.toolChangeZ));
+    onRapid(propertyMmToUnit(properties.toolChange1_X), propertyMmToUnit(properties.toolChange2_Y), propertyMmToUnit(properties.toolChange3_Z));
     
     flushMotions();
   
