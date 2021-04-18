@@ -126,6 +126,10 @@ properties = {
   cl3_coolantAOff: "M42 P6 S0",     // Gcode command to turn off Coolant channel A
   cl4_coolantBOn: "M42 P11 S255",   // GCode command to turn on Coolant channel B
   cl5_coolantBOff: "M42 P11 S0",    // Gcode command to turn off Coolant channel B 
+  cl6_cust_coolantAOn: "",          // Custom GCode command to turn on Coolant channel A
+  cl7_cust_coolantAOff: "",         // Custom Gcode command to turn off Coolant channel A
+  cl8_cust_coolantBOn: "",          // Custom GCode command to turn on Coolant channel B
+  cl9_cust_coolantBOff: "",         // Custom Gcode command to turn off Coolant channel B 
 
   DuetMillingMode: "M453 P2 I0 R30000 F200", // GCode command to setup Duet3d milling mode
   DuetLaserMode: "M452 P2 I0 R255 F200",     // GCode command to setup Duet3d laser mode
@@ -383,7 +387,8 @@ propertyDefinitions = {
         { title: "Mrln: M42 P6 S255", id: "M42 P6 S255" },
         { title: "Mrln: M42 P11 S255", id: "M42 P11 S255" },
         { title: "Grbl: M7 (mist)", id: "M7" },
-        { title: "Grbl: M8 (flood)", id: "M8" }
+        { title: "Grbl: M8 (flood)", id: "M8" },
+        { title: "Use custom", id: "Use custom" }
       ]
   },
   cl3_coolantAOff: {
@@ -392,7 +397,8 @@ propertyDefinitions = {
     values: [
       { title: "Mrln: M42 P6 S0", id: "M42 P6 S0" },
       { title: "Mrln: M42 P11 S0", id: "M42 P11 S0" },
-      { title: "Grbl: M9 (off)", id: "M9" }
+      { title: "Grbl: M9 (off)", id: "M9" },
+      { title: "Use custom", id: "Use custom" }
     ]
   },
   cl4_coolantBOn: {
@@ -402,7 +408,8 @@ propertyDefinitions = {
       { title: "Mrln: M42 P11 S255", id: "M42 P11 S255" },
       { title: "Mrln: M42 P6 S255", id: "M42 P6 S255" },
       { title: "Grbl: M7 (mist)", id: "M7" },
-      { title: "Grbl: M8 (flood)", id: "M8" }
+      { title: "Grbl: M8 (flood)", id: "M8" },
+      { title: "Use custom", id: "Use custom" }
     ]
   },
   cl5_coolantBOff: {
@@ -411,8 +418,25 @@ propertyDefinitions = {
     values: [
       { title: "Mrln: M42 P11 S0", id: "M42 P11 S0" },
       { title: "Mrln: M42 P6 S0", id: "M42 P6 S0" },
-      { title: "Grbl: M9 (off)", id: "M9" }
+      { title: "Grbl: M9 (off)", id: "M9" },
+      { title: "Use custom", id: "Use custom" }
     ]
+  },
+  cl6_cust_coolantAOn: {
+    title: "Coolant: Custom A Enable", description: "Custom GCode to turn On coolant channel A", group: 8,
+    type: "string", default_mm: "", default_in: "",
+  },
+  cl7_cust_coolantAOff: {
+    title: "Coolant: Custom A Disable", description: "Custom Gcode to turn Off coolant A", group: 8,
+    type: "string", default_mm: "", default_in: "",
+  },
+  cl8_cust_coolantBOn: {
+    title: "Coolant: Custom B Enable", description: "Custom GCode to turn On coolant channel B", group: 8,
+    type: "string", default_mm: "", default_in: "",
+  },
+  cl9_cust_coolantBOff: {
+    title: "Coolant: Custom B Disable", description: "Custom Gcode to turn Off coolant B", group: 8,
+    type: "string", default_mm: "", default_in: "",
   },
 
   DuetMillingMode: {
@@ -683,11 +707,23 @@ function isSafeToRapid(x, y, z) {
 //---------------- Coolant ----------------
 
 function CoolantA(on) {
-  writeBlock(on ? properties.cl2_coolantAOn : properties.cl3_coolantAOff);
+  var coolantText = on ? properties.cl2_coolantAOn : properties.cl3_coolantAOff;
+
+  if (coolantText == "Use custom") {
+    coolantText = on ? properties.cl6_cust_coolantAOn : properties.cl7_cust_coolantAOff;
+  }
+
+  writeBlock(coolantText);
 }
 
 function CoolantB(on) {
-  writeBlock(on ? properties.cl4_coolantBOn : properties.cl5_coolantBOff);
+  var coolantText = on ? properties.cl4_coolantBOn : properties.cl5_coolantBOff;
+
+  if (coolantText == "Use custom") {
+    coolantText = on ? properties.cl8_cust_coolantBOn : properties.cl9_cust_coolantBOff;
+  }
+
+  writeBlock(coolantText);
 }
 
 // Manage two channels of coolant by tracking which coolant is being using for
