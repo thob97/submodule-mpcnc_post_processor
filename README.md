@@ -1,6 +1,15 @@
 
-Fusion 360 CAM posts processor for MPCNC 
-====
+## Related
+* [3040 CNC Marlin](https://github.com/thob97/3040-CNC-marlin.git)
+* [CNC-BIGTREETECH-TouchScreenFirmware](https://github.com/thob97/CNC-BIGTREETECH-TouchScreenFirmware.git)
+* [MarlinCNC](https://github.com/thob97/MarlinCNC.git)
+* [submodule-mpcnc_post_processor](https://github.com/thob97/submodule-mpcnc_post_processor.git)
+
+# Fusion 360 CAM posts processor for MPCNC 
+
+
+
+
 
 This is modified fork of https://github.com/guffy1234/mpcnc_posts_processor that was originally forked https://github.com/martindb/mpcnc_posts_processor.
 
